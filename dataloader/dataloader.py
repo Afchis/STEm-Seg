@@ -11,7 +11,7 @@ class TrainData(Dataset):
     def __init__(self, data_path, time):
         '''
         TODO:
-        *** Add DAVIS 2019 unsuperrvised dataset
+        *** Add DAVIS 2019 unsuperrvised dataset (i have singe video with bear)
         * Add the ability to combine datasets
         '''
         super().__init__()

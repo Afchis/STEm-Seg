@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from model_parts import Encoder, DecoderHeatMap
+from .model_parts import Encoder, DecoderHeatMap, DecoderEmbedding
 
 
 class STEmSeg(nn.Module):
@@ -9,17 +9,19 @@ class STEmSeg(nn.Module):
         super().__init__()
         self.encoder = Encoder()
         self.decoder_heatmap = DecoderHeatMap()
+        self.decoder_embedding = DecoderEmbedding()
 
     def forward(self, images):
         out = self.encoder(images)
-        return out
+        heat_map = self.decoder_heatmap(out)
+        # print("model_head.heat_map.shape: ", heat_map.shape)
+        var = self.decoder_embedding(out)
+        # print("model_head.Emb.shape: ", var.shape)
+        return heat_map, var
 
 
 if __name__ == '__main__':
-    images = torch.randn([1, 5, 3, 256, 256])
+    images = torch.randn([1, 8, 3, 256, 256])
     model = STEmSeg()
-    f4, f8, f16, f32 = model(images)
-    print("f4.shape: ", f4.shape)
-    print("f8.shape: ", f8.shape)
-    print("f16.shape: ", f16.shape)
-    print("f32.shape: ", f32.shape)
+    model(images)
+

@@ -26,7 +26,7 @@ class Encoder(nn.Module):
 
     def _upsample_add(self, x, y):
         _,_,H,W = y.size()
-        return F.upsample(x, size=(H,W), mode='bilinear') + y
+        return F.interpolate(x, size=(H,W), mode='bilinear', align_corners=False) + y
 
     def forward(self, x):
         B_size, T_size, Ch_size, H_size, W_size = x.size()
@@ -131,8 +131,88 @@ class DecoderHeatMap(nn.Module):
         return out
 
 
+class DecoderEmbedding(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.squeeze32_0 = nn.Sequential(
+            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.BatchNorm3d(128),
+            nn.ReLU(),
+            nn.AvgPool3d(kernel_size=(2, 1, 1))
+            )
+        self.squeeze32_1 = nn.Sequential(
+            nn.Conv3d(128, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.BatchNorm3d(64),
+            nn.ReLU(),
+            nn.AvgPool3d(kernel_size=(2, 1, 1))
+            )
+        self.squeeze32_2 = nn.Sequential(
+            nn.Conv3d(64, 32, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.BatchNorm3d(32),
+            nn.ReLU(),
+            nn.AvgPool3d(kernel_size=(2, 1, 1))
+            )
+
+        self.squeeze16_0 = nn.Sequential(
+            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.BatchNorm3d(128),
+            nn.ReLU(),
+            nn.AvgPool3d(kernel_size=(2, 1, 1))
+            )
+        self.squeeze16_1 = nn.Sequential(
+            nn.Conv3d(128, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.BatchNorm3d(64),
+            nn.ReLU(),
+            nn.AvgPool3d(kernel_size=(2, 1, 1))
+            )
+        self.conv16_2 = nn.Conv3d(32+64, 32, kernel_size=(1, 1, 1))
+
+        self.squeeze8_0 = nn.Sequential(
+            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.BatchNorm3d(128),
+            nn.ReLU(),
+            nn.AvgPool3d(kernel_size=(2, 1, 1))
+            )
+        self.conv8_1 = nn.Conv3d(32+128, 32, kernel_size=(1, 1, 1))
+
+        self.conv4_0 = nn.Sequential(
+            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.BatchNorm3d(128),
+            nn.ReLU()
+            )
+        self.conv4_1 = nn.Conv3d(32+128, 32, kernel_size=(1, 1, 1))
+        self.conv4_final = nn.Conv3d(32, 3, kernel_size=(1, 1, 1))
+
+        self.upsample = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=False)
+
+    def forward(self, feats):
+        f4, f8, f16, f32 = feats
+
+        f32 = self.squeeze32_0(f32)
+        f32 = self.squeeze32_1(f32)
+        f32 = self.squeeze32_2(f32)
+        f32 = self.upsample(f32)
+
+        f16 = self.squeeze16_0(f16)
+        f16 = self.squeeze16_1(f16)
+        f16 = torch.cat([f32, f16], dim=1)
+        f16 = self.conv16_2(f16)
+        f16 = self.upsample(f16)
+
+        f8 = self.squeeze8_0(f8)
+        f8 = torch.cat([f16, f8], dim=1)
+        f8 = self.conv8_1(f8)
+        f8 = self.upsample(f8)
+
+        f4 = self.conv4_0(f4)
+        f4 = torch.cat([f8, f4], dim=1)
+        f4 = self.conv4_1(f4)
+        out = self.conv4_final(f4)
+        return out
+
+
 if __name__ == '__main__':
-    images = torch.randn([1, 8, 3, 256, 256]) # t_min 
+    images = torch.randn([1, 8, 3, 256, 256]) # t_min = 8
     enc = Encoder()
     f4, f8, f16, f32 = enc(images)
     print("f4.shape: ", f4.shape)
@@ -145,3 +225,8 @@ if __name__ == '__main__':
     dec_h_out = dec_h(enc_out)
     print("dec_h_out.shape: ", dec_h_out.shape)
     print("DecoderHeatMap Done!")
+    dec_e = DecoderEmbedding()
+    dec_e_out = dec_e(enc_out)
+    print("dec_e_out.shape: ", dec_e_out.shape)
+    print("DecoderEmbedding Done!")
+
