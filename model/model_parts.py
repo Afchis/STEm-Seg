@@ -8,7 +8,7 @@ import torchvision.models as models
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.backbone = models.resnet50(pretrained=True)
+        self.backbone = models.resnet101(pretrained=True)
         self.resnet_layers = list(self.backbone.children())
         self.layer0 = nn.Sequential(*self.resnet_layers[0:5])
         self.layer1 = nn.Sequential(*self.resnet_layers[5])
@@ -51,7 +51,25 @@ class Encoder(nn.Module):
         return f4, f8, f16, f32
 
 
+class SqueezeBlock(nn.Module):
+    def __init__(self, in_channel, out_channel):
+        super().__init__() 
+        self.squeeze = nn.Sequential(
+            nn.Conv3d(in_channel, out_channel, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.BatchNorm3d(out_channel),
+            nn.ReLU(),
+            nn.AvgPool3d(kernel_size=(2, 1, 1))
+            )
+
+    def forward(self, x):
+        return self.squeeze()
+
+
 class DecoderHeatMap(nn.Module):
+    '''
+    TODO:
+    ** make GroupNorm()
+    '''
     def __init__(self):
         super().__init__()
         self.squeeze32_0 = nn.Sequential(
@@ -132,6 +150,10 @@ class DecoderHeatMap(nn.Module):
 
 
 class DecoderEmbedding(nn.Module):
+    '''
+    TODO:
+    ** make GroupNorm()
+    '''
     def __init__(self):
         super().__init__()
         self.squeeze32_0 = nn.Sequential(
@@ -181,7 +203,7 @@ class DecoderEmbedding(nn.Module):
             nn.ReLU()
             )
         self.conv4_1 = nn.Conv3d(32+128, 32, kernel_size=(1, 1, 1))
-        self.conv4_final = nn.Conv3d(32, 3, kernel_size=(1, 1, 1))
+        self.conv4_final = nn.Conv3d(32, 6, kernel_size=(1, 1, 1))
 
         self.upsample = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=False)
 
