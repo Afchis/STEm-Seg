@@ -56,7 +56,7 @@ def CenterLoss(outs, masks4, weight=1.):
 
 def EmbeddingLoss(pred, label, weight=1.):
     # loss = dice_loss(pred, label.squeeze())
-    # loss = F.binary_cross_entropy(pred, label.squeeze())
-    loss = lovasz_hinge(pred, label.squeeze(), per_image=False, ignore=None)
+    loss = F.binary_cross_entropy(pred, label.squeeze())
+    # loss = lovasz_hinge(pred, label.squeeze(), per_image=False, ignore=None)
     return weight * loss
 

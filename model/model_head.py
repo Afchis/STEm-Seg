@@ -1,15 +1,15 @@
 import torch
 import torch.nn as nn
 
-from .model_parts import Encoder, DecoderHeatMap, DecoderEmbedding
+from .model_parts import Encoder, Decoder
 
 
 class STEmSeg(nn.Module):
     def __init__(self, batch_size):
         super().__init__()
         self.encoder = Encoder()
-        self.decoder_heatmap = DecoderHeatMap()
-        self.decoder_embedding = DecoderEmbedding()
+        self.decoder_heatmap = Decoder(out_channel=1)
+        self.decoder_embedding = Decoder(out_channel=6)
         self.sigmoid = nn.Sigmoid()
         self.softplus = nn.Softplus()
 

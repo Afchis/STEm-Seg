@@ -5,6 +5,20 @@ import torch.nn.functional as F
 import torchvision.models as models
 
 
+class SqueezeBlock(nn.Module):
+    def __init__(self, in_channel, out_channel, group):
+        super().__init__() 
+        self.squeeze = nn.Sequential(
+            nn.Conv3d(in_channel, out_channel, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.GroupNorm(group, out_channel),
+            nn.ReLU(),
+            nn.AvgPool3d(kernel_size=(2, 1, 1))
+            )
+
+    def forward(self, x):
+        return self.squeeze(x)
+
+
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
@@ -51,159 +65,27 @@ class Encoder(nn.Module):
         return f4, f8, f16, f32
 
 
-class SqueezeBlock(nn.Module):
-    def __init__(self, in_channel, out_channel):
-        super().__init__() 
-        self.squeeze = nn.Sequential(
-            nn.Conv3d(in_channel, out_channel, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(out_channel),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-
-    def forward(self, x):
-        return self.squeeze()
-
-
-class DecoderHeatMap(nn.Module):
-    '''
-    TODO:
-    ** make GroupNorm()
-    '''
-    def __init__(self):
+class Decoder(nn.Module):
+    def __init__(self, out_channel):
         super().__init__()
-        self.squeeze32_0 = nn.Sequential(
-            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(128),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-        self.squeeze32_1 = nn.Sequential(
-            nn.Conv3d(128, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(64),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-        self.squeeze32_2 = nn.Sequential(
-            nn.Conv3d(64, 32, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(32),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
+        self.squeeze32_0 = SqueezeBlock(in_channel=256, out_channel=128,group= 4)
+        self.squeeze32_1 = SqueezeBlock(in_channel=128, out_channel=64, group=2)
+        self.squeeze32_2 = SqueezeBlock(in_channel=64, out_channel=32, group=1)
 
-        self.squeeze16_0 = nn.Sequential(
-            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(128),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-        self.squeeze16_1 = nn.Sequential(
-            nn.Conv3d(128, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(64),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
+        self.squeeze16_0 = SqueezeBlock(in_channel=256, out_channel=128, group=4)
+        self.squeeze16_1 = SqueezeBlock(in_channel=128, out_channel=64, group=2)
         self.conv16_2 = nn.Conv3d(32+64, 32, kernel_size=(1, 1, 1))
 
-        self.squeeze8_0 = nn.Sequential(
-            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(128),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
+        self.squeeze8_0 = SqueezeBlock(in_channel=256, out_channel=128, group=4)
         self.conv8_1 = nn.Conv3d(32+128, 32, kernel_size=(1, 1, 1))
 
         self.conv4_0 = nn.Sequential(
             nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(128),
+            nn.GroupNorm(8, 128),
             nn.ReLU()
             )
         self.conv4_1 = nn.Conv3d(32+128, 32, kernel_size=(1, 1, 1))
-        self.conv4_final = nn.Conv3d(32, 1, kernel_size=(1, 1, 1))
-
-        self.upsample = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=False)
-
-    def forward(self, feats):
-        f4, f8, f16, f32 = feats
-
-        f32 = self.squeeze32_0(f32)
-        f32 = self.squeeze32_1(f32)
-        f32 = self.squeeze32_2(f32)
-        f32 = self.upsample(f32)
-
-        f16 = self.squeeze16_0(f16)
-        f16 = self.squeeze16_1(f16)
-        f16 = torch.cat([f32, f16], dim=1)
-        f16 = self.conv16_2(f16)
-        f16 = self.upsample(f16)
-
-        f8 = self.squeeze8_0(f8)
-        f8 = torch.cat([f16, f8], dim=1)
-        f8 = self.conv8_1(f8)
-        f8 = self.upsample(f8)
-
-        f4 = self.conv4_0(f4)
-        f4 = torch.cat([f8, f4], dim=1)
-        f4 = self.conv4_1(f4)
-        out = self.conv4_final(f4)
-        return out
-
-
-class DecoderEmbedding(nn.Module):
-    '''
-    TODO:
-    ** make GroupNorm()
-    '''
-    def __init__(self):
-        super().__init__()
-        self.squeeze32_0 = nn.Sequential(
-            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(128),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-        self.squeeze32_1 = nn.Sequential(
-            nn.Conv3d(128, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(64),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-        self.squeeze32_2 = nn.Sequential(
-            nn.Conv3d(64, 32, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(32),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-
-        self.squeeze16_0 = nn.Sequential(
-            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(128),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-        self.squeeze16_1 = nn.Sequential(
-            nn.Conv3d(128, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(64),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-        self.conv16_2 = nn.Conv3d(32+64, 32, kernel_size=(1, 1, 1))
-
-        self.squeeze8_0 = nn.Sequential(
-            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(128),
-            nn.ReLU(),
-            nn.AvgPool3d(kernel_size=(2, 1, 1))
-            )
-        self.conv8_1 = nn.Conv3d(32+128, 32, kernel_size=(1, 1, 1))
-
-        self.conv4_0 = nn.Sequential(
-            nn.Conv3d(256, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
-            nn.BatchNorm3d(128),
-            nn.ReLU()
-            )
-        self.conv4_1 = nn.Conv3d(32+128, 32, kernel_size=(1, 1, 1))
-        self.conv4_final = nn.Conv3d(32, 6, kernel_size=(1, 1, 1))
+        self.conv4_final = nn.Conv3d(32, out_channel, kernel_size=(1, 1, 1))
 
         self.upsample = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=False)
 

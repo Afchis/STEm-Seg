@@ -1,5 +1,6 @@
 import argparse
 
+import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
@@ -32,6 +33,9 @@ if args.tb != "None":
 
 # init model
 model = STEmSeg(batch_size=args.batch).cuda()
+model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+params = sum([np.prod(p.size()) for p in model_parameters])
+print("Params", params)
 
 # init cluster
 cluster = Cluster()
