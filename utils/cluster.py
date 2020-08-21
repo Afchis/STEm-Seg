@@ -38,12 +38,9 @@ class Cluster:
     def run(self, outs, masks4):
         Heat_map, Var, Emb = outs
         Var, Emb = Var*masks4, Emb*masks4
-        # print("Var.shape: ", Var.shape, "Emb.shape: ", Emb.shape)
         Sigma = Var.sum(4).sum(3).sum(2) / masks4.sum(4).sum(3).sum(2)
         Nyu = Emb.sum(4).sum(3).sum(2) / masks4.sum(4).sum(3).sum(2)
-        # print("Sigma.shape: ", Sigma.shape, "Nyu.shape: ", Nyu.shape)
         pred = self._eq2_(Emb, Sigma, Nyu)
-        # print("pred.shape: ", pred.shape)
         pred = (pred > 0.5).float()
         return pred
 

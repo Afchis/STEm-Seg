@@ -23,10 +23,13 @@ class STEmSeg(nn.Module):
         out = self.encoder(images)
         Heat_map = self.decoder_heatmap(out)
         Var_Emb = self.decoder_embedding(out)
+        print(Var_Emb.shape)
         Var = Var_Emb[:, :3]
         Emb = Var_Emb[:, 3:]
         Heat_map = self.sigmoid(Heat_map)
+        print(Var.shape)
         Var = self.softplus(Var)
+        print(Var.shape)
         Emb = Emb + self.tyxm
         return Heat_map, Var, Emb
 
