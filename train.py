@@ -15,7 +15,7 @@ from loss_metric.losses import SmoothLoss, CenterLoss, EmbeddingLoss
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--data", type=str, default="./ignore/data/DAVIS", help="data path")
-parser.add_argument("--time", type=int, default=8, help="Time size")
+parser.add_argument("--time", type=int, default=1, help="Time size")
 parser.add_argument("--batch", type=int, default=1, help="Batch size")
 parser.add_argument("--workers", type=int, default=1, help="Num workers")
 parser.add_argument("--epochs", type=int, default=1000, help="Num epochs")
@@ -62,7 +62,13 @@ def train():
                 break
 
             pred_masks = cluster.run(outs, masks4)
-            smooth_loss, center_loss, embedding_loss = SmoothLoss(outs, masks4), CenterLoss(outs, masks4), EmbeddingLoss(pred_masks, masks4)
+            print("CLUSTR DONE!!!")
+            smooth_loss = SmoothLoss(outs, masks4)
+            print("SmoothLoss DONE!!!")
+            center_loss = CenterLoss(outs, masks4)
+            print("CenterLoss DONE!!!")
+            embedding_loss = EmbeddingLoss(pred_masks, masks4)
+            print("EmbeddingLoss DONE!!!")
             loss = smooth_loss + center_loss + embedding_loss
             # print loss for each iter
             print("iter: ", epoch, "TotalLoss: %.4f" % loss.item(), \

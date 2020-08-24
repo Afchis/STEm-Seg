@@ -5,7 +5,7 @@ from .lovasz_loss import lovasz_hinge
 
 # SmoothLoss:
 def _sqrt_sum_(var, var_mean, masks4):
-    return (((var - var_mean)*masks4)**2).sum(4).sum(3).sum(2).sum(1).mean()
+    return (((var - var_mean)*masks4)**2).sum(3).sum(2).sum(1).mean()
 
 # CenterLoss:
 def _eq2_(Emb, Sigma, Nyu):
@@ -40,23 +40,24 @@ def cross_entropy_loss(x, y):
 def SmoothLoss(outs, masks4, weight=10.):
     _, Var, _ = outs
     Var_j = Var * masks4
-    Var_mean = Var_j.sum(4).sum(3).sum(2) / masks4.sum()
-    loss = _sqrt_sum_(Var_j, Var_mean.view(Var_j.size(0), Var_j.size(1), 1, 1, 1), masks4) / masks4.sum()
+    Var_mean = Var_j.sum(3).sum(2) / masks4.sum()
+    loss = _sqrt_sum_(Var_j, Var_mean.view(Var_j.size(0), Var_j.size(1), 1, 1), masks4) / masks4.sum()
     return weight * loss
 
 def CenterLoss(outs, masks4, weight=1.):
     Heat_map, Var, Emb = outs
     Heat_map_j, Var_j, Emb_j = Heat_map*masks4, Var*masks4, Emb*masks4
-    Sigma = Var_j.sum(4).sum(3).sum(2) / masks4.sum(4).sum(3).sum(2)
-    Nyu = Emb_j.sum(4).sum(3).sum(2) / masks4.sum(4).sum(3).sum(2)
+    Sigma = Var_j.sum(3).sum(2) / masks4.sum(3).sum(2)
+    Nyu = Emb_j.sum(3).sum(2) / masks4.sum(3).sum(2)
     C_j = _eq2_(Emb_j, Sigma, Nyu)
     C_j = C_j.detach()
-    loss = ((C_j - Heat_map_j.squeeze())**2).sum(3).sum(2).sum(1) / masks4.sum(4).sum(3).sum(2).squeeze()
+    loss = ((C_j - Heat_map_j.squeeze())**2).sum(2).sum(1) / masks4.sum(3).sum(2).squeeze()
     return weight * loss.mean()
 
 def EmbeddingLoss(pred, label, weight=1.):
+    # print(pred.shape, label.shape)
     # loss = dice_loss(pred, label.squeeze())
-    loss = F.binary_cross_entropy(pred, label.squeeze())
-    # loss = lovasz_hinge(pred, label.squeeze(), per_image=False, ignore=None)
+    # loss = F.binary_cross_entropy(pred, label.squeeze())
+    loss = lovasz_hinge(pred, label, per_image=False, ignore=None)
     return weight * loss
 

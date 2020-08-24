@@ -42,26 +42,16 @@ class TrainData(Dataset):
         TODO:
         * If image not RGB, do --> .convert('RGB')
         '''
-        images = list()
-        masks = list()
-        masks4 = list()
-        for time in range(self.time):
-            image = Image.open(self.data_path + "/JPEGImages/480p/bear/" + self.file_names[idx+time])
-            image = self.trans(image)
-            images.append(image)
-            mask = Image.open(self.data_path + "/Annotations_unsupervised/480p/bear/" + self.file_names[idx+time][:-3] + "png").convert('L')
+        image = Image.open(self.data_path + "/JPEGImages/480p/bear/" + self.file_names[idx])
+        image = self.trans(image)
+        mask = Image.open(self.data_path + "/Annotations_unsupervised/480p/bear/" + self.file_names[idx][:-3] + "png").convert('L')
 
-            mask4 = self.trans4(mask)
-            mask4 = (mask4 > 0).float()
-            masks4.append(mask4)
+        mask4 = self.trans4(mask)
+        mask4 = (mask4 > 0).float()
 
-            mask = self.trans(mask)
-            mask = (mask > 0).float()
-            masks.append(mask)
-        images = torch.stack(images, dim=0) # [t, c, h, w]
-        masks = torch.stack(masks, dim=0) # [t, c, h, w]
-        masks4 = torch.stack(masks4, dim=1) # [c, t, h, w]
-        return images, masks, masks4
+        mask = self.trans(mask)
+        mask = (mask > 0).float()
+        return image, mask, mask4
 
 def Loader(data_path, batch_size, time, num_workers, shuffle=True):
     print("Initiate DataLoader")
@@ -74,7 +64,7 @@ def Loader(data_path, batch_size, time, num_workers, shuffle=True):
     return train_loader
 
 def main(idx):
-    data = TrainData(data_path="./ignore/data/DAVIS", time=8)
+    data = TrainData(data_path="./ignore/data/DAVIS", time=1)
     return data[idx]
 
 
