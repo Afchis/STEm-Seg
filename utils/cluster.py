@@ -32,6 +32,7 @@ class Cluster:
         Sigma = Sigma.view(Emb.size(0), Emb.size(1), 1, 1, 1)
         Nyu = Nyu.view(Emb.size(0), Emb.size(1), 1, 1, 1)
         B = (-0.5) * ((Emb - Nyu)**2 * (1/Sigma)).sum(dim=1)
+        print(B.shape)
         A = A.view(B.size(0), 1, 1, 1)
         return A*torch.exp(B)
 
