@@ -8,8 +8,8 @@ class Cluster:
     '''
     def _eq2_(self, Emb, Sigma, Nyu):
         A = 1 / (torch.sqrt(torch.tensor(2*3.1415))**Emb.size(1) * torch.sqrt(torch.prod(Sigma, dim=1)))
-        Sigma = Sigma.view(Emb.size(0), Emb.size(1), 1, 1, 1)
-        Nyu = Nyu.view(Emb.size(0), Emb.size(1), 1, 1, 1)
+        Sigma = Sigma.view(Emb.size(0), Emb.size(1), 1, 1)
+        Nyu = Nyu.view(Emb.size(0), Emb.size(1), 1, 1)
         B = (-0.5) * ((Emb - Nyu)**2 * (1/Sigma)).sum(dim=1)
         A = A.view(B.size(0), 1, 1, 1)
         return A*torch.exp(B)

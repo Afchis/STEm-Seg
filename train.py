@@ -62,13 +62,9 @@ def train():
                 break
 
             pred_masks = cluster.run(outs, masks4)
-            print("CLUSTR DONE!!!")
             smooth_loss = SmoothLoss(outs, masks4)
-            print("SmoothLoss DONE!!!")
             center_loss = CenterLoss(outs, masks4)
-            print("CenterLoss DONE!!!")
             embedding_loss = EmbeddingLoss(pred_masks, masks4)
-            print("EmbeddingLoss DONE!!!")
             loss = smooth_loss + center_loss + embedding_loss
             # print loss for each iter
             print("iter: ", epoch, "TotalLoss: %.4f" % loss.item(), \
