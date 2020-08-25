@@ -9,7 +9,7 @@ class STEmSeg(nn.Module):
         super().__init__()
         self.encoder = Encoder()
         self.decoder_heatmap = Decoder(out_channel=1)
-        self.decoder_embedding = Decoder(out_channel=6)
+        self.decoder_embedding = Decoder(out_channel=)
         self.sigmoid = nn.Sigmoid()
         self.softplus = nn.Softplus()
 

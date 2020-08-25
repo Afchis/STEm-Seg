@@ -5,7 +5,7 @@ from .lovasz_loss import lovasz_hinge
 
 # SmoothLoss:
 def _sqrt_sum_(var, var_mean, masks4):
-    return (((var - var_mean)*masks4)**2).sum(4).sum(3).sum(2).sum(1).mean()
+    return (((var - var_mean)*masks4)**2).sum(4).sum(3).sum(2).mean()
 
 # CenterLoss:
 def _eq2_(Emb, Sigma, Nyu):
@@ -37,11 +37,13 @@ def cross_entropy_loss(x, y):
 
 
 # Losses:
-def SmoothLoss(outs, masks4, weight=10.):
+def SmoothLoss(outs, masks4, weight=1.):
     _, Var, _ = outs
     Var_j = Var * masks4
-    Var_mean = Var_j.sum(4).sum(3).sum(2) / masks4.sum()
+    print(Var_j.sum(4).sum(3).sum(2).shape, masks4.sum(4).sum(3).sum(2).shape)
+    Var_mean = Var_j.sum(4).sum(3).sum(2) / masks4.sum(4).sum(3).sum(2)
     loss = _sqrt_sum_(Var_j, Var_mean.view(Var_j.size(0), Var_j.size(1), 1, 1, 1), masks4) / masks4.sum()
+    print(loss)
     return weight * loss
 
 def CenterLoss(outs, masks4, weight=1.):
@@ -55,8 +57,8 @@ def CenterLoss(outs, masks4, weight=1.):
     return weight * loss.mean()
 
 def EmbeddingLoss(pred, label, weight=1.):
-    # loss = dice_loss(pred, label.squeeze())
-    loss = F.binary_cross_entropy(pred, label.squeeze())
-    # loss = lovasz_hinge(pred, label.squeeze(), per_image=False, ignore=None)
+    # label = label.reshape(pred.size())
+    loss = dice_loss(pred, label)
+    # loss = F.cross_entropy(pred, label.long())
+    # loss = lovasz_hinge(pred, label, per_image=False, ignore=None)
     return weight * loss
-

@@ -56,17 +56,19 @@ def train():
             images, masks, masks4 = images.cuda(), masks.cuda(), masks4.cuda()
 
             # if batch != args.batch: break
-            try:
-                outs = model(images)
-            except RuntimeError:
-                break
+            # try:
+            outs = model(images)
+            # except RuntimeError:
+                # break
 
             pred_masks = cluster.run(outs, masks4)
-            smooth_loss, center_loss, embedding_loss = SmoothLoss(outs, masks4), CenterLoss(outs, masks4), EmbeddingLoss(pred_masks, masks4)
-            loss = smooth_loss + center_loss + embedding_loss
+            smooth_loss = SmoothLoss(outs, masks4)
+            # center_loss = CenterLoss(outs, masks4)
+            # embedding_loss = EmbeddingLoss(pred_masks, masks4)
+            loss = smooth_loss #+ center_loss + embedding_loss
             # print loss for each iter
-            print("iter: ", epoch, "TotalLoss: %.4f" % loss.item(), \
-                "SLoss: %.4f" % smooth_loss.item(), "CLoss: %.4f" % center_loss.item(), "ELoss: %.4f" % embedding_loss.item())
+            # print("iter: ", epoch, "TotalLoss: %.4f" % loss.item(), \
+                # "SLoss: %.4f" % smooth_loss.item(), "CLoss: %.4f" % center_loss.item(), "ELoss: %.4f" % embedding_loss.item())
             # TODO: print(metric)
             loss.backward()
             optimizer.step()
