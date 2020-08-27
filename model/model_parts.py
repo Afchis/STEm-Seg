@@ -116,7 +116,7 @@ class Decoder(nn.Module):
 
 
 if __name__ == '__main__':
-    images = torch.randn([1, 8, 3, 256, 256]) # t_min = 8
+    images = torch.randn([1, 8, 3, 64, 64]) # t_min = 8
     enc = Encoder()
     f4, f8, f16, f32 = enc(images)
     print("f4.shape: ", f4.shape)

@@ -9,7 +9,7 @@ resize = transforms.Resize((128, 128), interpolation=0)
 
 def Visual(pred_masks, i, mode):
     # images = resize(to_pil(images[0][4].cpu()))
-    out = to_pil(pred_masks[0][4].cpu()).convert("RGBA")
+    out = to_pil(pred_masks[0][0].cpu()).convert("RGBA")
     # mask = Image.new("RGBA", out.size, 128)
     # im = Image.composite(images, out, mask)
     out.save("ignore/visual/" + mode + "/" + mode + "%ipred.png" % i)

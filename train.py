@@ -31,9 +31,9 @@ parser.add_argument("--train", type=bool, default=False, help="Train")
 args = parser.parse_args()
     
 # init tensorboard: !tensorboard --logdir=ignore/runs
-# if args.tb != "None":
-print("Tensorboard name: ", args.tb)
-writer = SummaryWriter('runs/experiment1')
+if args.tb != "None":
+    print("Tensorboard name: ", args.tb)
+    writer = SummaryWriter('ignore/runs')
 
 # init model
 model = STEmSeg(batch_size=args.batch).cuda()
@@ -89,41 +89,43 @@ def train():
                 if args.vis == True:
                     Visual(pred_masks, i, 'train')
                     Visual(Heat_map.reshape(pred_masks.size()), i, 'heat_map')
+                    print(masks4.shape)
+                    Visual(masks4, i, 'masks4')
             if epoch % 10 == 0:
                 torch.save(model.state_dict(), 'ignore/weights/%s.pth' % args.w)
                 print("Save weights: %s.pth" % args.w)
 
-            for i, data in enumerate(data_loader["valid"]):
-                model.eval()
-                images, masks4 = data
-                images, masks4 = images.cuda(), masks4.cuda()
-                if images.size(0) != args.batch: 
-                    break
-                outs = model(images)
-                pred_masks = cluster.run(outs, masks4)
-                smooth_loss = SmoothLoss(outs, masks4)
-                center_loss = CenterLoss(outs, masks4)
-                embedding_loss = EmbeddingLoss(pred_masks, masks4)
-                loss = smooth_loss + center_loss + embedding_loss
-                print("iter: ", i, "TotalLoss: %.4f" % loss.item(), \
-                    "SLoss: %.4f" % smooth_loss.item(), "CLoss: %.4f" % center_loss.item(), "ELoss: %.4f" % embedding_loss.item())
-                if args.tb != "None":
-                    writer.add_scalars('%s_Total_loss' % args.tb, {'valid' : loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Smooth_loss' % args.tb, {'valid' : smooth_loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Center_loss' % args.tb, {'valid' : center_loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'valid' : embedding_loss.item()}, tb_iter)
-                    tb_iter += 1
-                if args.vis == True:
-                    Visual(pred_masks, i, 'valid')
+        #     for i, data in enumerate(data_loader["valid"]):
+        #         model.eval()
+        #         images, masks4 = data
+        #         images, masks4 = images.cuda(), masks4.cuda()
+        #         if images.size(0) != args.batch: 
+        #             break
+        #         outs = model(images)
+        #         pred_masks = cluster.run(outs, masks4)
+        #         smooth_loss = SmoothLoss(outs, masks4)
+        #         center_loss = CenterLoss(outs, masks4)
+        #         embedding_loss = EmbeddingLoss(pred_masks, masks4)
+        #         loss = smooth_loss + center_loss + embedding_loss
+        #         print("iter: ", i, "TotalLoss: %.4f" % loss.item(), \
+        #             "SLoss: %.4f" % smooth_loss.item(), "CLoss: %.4f" % center_loss.item(), "ELoss: %.4f" % embedding_loss.item())
+        #         if args.tb != "None":
+        #             writer.add_scalars('%s_Total_loss' % args.tb, {'valid' : loss.item()}, tb_iter)
+        #             writer.add_scalars('%s_Smooth_loss' % args.tb, {'valid' : smooth_loss.item()}, tb_iter)
+        #             writer.add_scalars('%s_Center_loss' % args.tb, {'valid' : center_loss.item()}, tb_iter)
+        #             writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'valid' : embedding_loss.item()}, tb_iter)
+        #             tb_iter += 1
+        #         if args.vis == True:
+        #             Visual(pred_masks, i, 'valid')
 
             
-        for i, images in enumerate(data_loader["test"]): 
-            model.eval()
-            images = images.cuda()
-            outs = model(images)
-            pred_masks = cluster.test_run(outs)
-            if args.vis == True:
-                Visual(pred_masks, i, 'test')
+        # for i, images in enumerate(data_loader["test"]): 
+        #     model.eval()
+        #     images = images.cuda()
+        #     outs = model(images)
+        #     pred_masks = cluster.test_run(outs)
+        #     if args.vis == True:
+        #         Visual(pred_masks, i, 'test')
 
 
 if __name__ == "__main__":

@@ -13,11 +13,11 @@ class STEmSeg(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.softplus = nn.Softplus()
 
-        # self.b = batch_size
-        # self.xm = torch.linspace(0, 1, 64).reshape(1, 1, 1, 1, -1).expand(self.b, 1, 8, 64, 64)
-        # self.ym = torch.linspace(0, 1, 64).reshape(1, 1, 1, -1, 1).expand(self.b, 1, 8, 64, 64)
-        # self.tm = torch.linspace(0, 1, 8).reshape(1, 1, -1, 1, 1).expand(self.b, 1, 8, 64, 64)
-        # self.tyxm = torch.cat([self.xm, self.ym, self.tm], dim=1).cuda()
+        self.b = batch_size
+        self.xm = torch.linspace(0, 1, 128).reshape(1, 1, 1, 1, -1).expand(self.b, 1, 8, 128, 128)
+        self.ym = torch.linspace(0, 1, 128).reshape(1, 1, 1, -1, 1).expand(self.b, 1, 8, 128, 128)
+        self.tm = torch.linspace(0, 1, 8).reshape(1, 1, -1, 1, 1).expand(self.b, 1, 8, 128, 128)
+        self.tyxm = torch.cat([self.xm, self.ym, self.tm], dim=1).cuda()
 
     def forward(self, images):
         out = self.encoder(images)
@@ -28,7 +28,7 @@ class STEmSeg(nn.Module):
         Emb = Var_Emb[:, 3:]
         Heat_map = self.sigmoid(Heat_map)
         Var = self.softplus(Var)
-        # Emb = Emb + self.tyxm.detach()
+        Emb = Emb + self.tyxm.detach()
         return Heat_map, Var, Emb
 
 
