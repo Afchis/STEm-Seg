@@ -1,5 +1,8 @@
 python train.py \
-	--lr 0.001 \
-	--train True \
 	--vis True \
-#	--tb iou_loss
+	--lr 0.005 \
+	--lr_step 2000 \
+	--lr_gamma 0.9 \
+	--tb dice_loss \
+	--w dice_loss \
+	--epoch 1

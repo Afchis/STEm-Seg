@@ -15,7 +15,7 @@ def _eq2_(Emb, Sigma, Nyu):
     Nyu = Nyu.view(Emb.size(0), Emb.size(1), 1, 1, 1)
     B = (-0.5) * ((Emb - Nyu)**2 * (1/Sigma)).sum(dim=1)
     A = A.view(B.size(0), 1, 1, 1)
-    return A*torch.exp(B)
+    return torch.exp(B)
 
 # EmbeddingLoss:
 def l2_loss(x, y, smooth = 1.):
@@ -37,8 +37,8 @@ def IOU_loss(x, y, smooth = 1.):
     intersection = (x * y).sum(dim=1).sum(dim=1).sum(dim=1)
     x_sum = x.sum(dim=1).sum(dim=1).sum(dim=1)
     y_sum = y.sum(dim=1).sum(dim=1).sum(dim=1)
-    loss = (intersection + smooth) / (x_sum + y_sum - intersection + smooth)
-    return 1. - loss.mean()
+    loss = 1 - ((intersection + smooth) / (x_sum + y_sum - intersection + smooth))
+    return loss.mean()
 
 
 # Losses:
@@ -54,18 +54,18 @@ def CenterLoss(outs, masks4, weight=1.):
     Heat_map_j, Var_j, Emb_j = Heat_map*masks4, Var*masks4, Emb*masks4
     Sigma = Var_j.sum(4).sum(3).sum(2) / masks4.sum(4).sum(3).sum(2)
     Nyu = Emb_j.sum(4).sum(3).sum(2) / masks4.sum(4).sum(3).sum(2)
-    C_j = (_eq2_(Emb, Sigma, Nyu)*masks4)#.detach()
-    loss = F.binary_cross_entropy_with_logits(Heat_map, C_j)
+    C_j = (_eq2_(Emb, Sigma, Nyu)*masks4).detach()
+    # loss = F.binary_cross_entropy_with_logits(Heat_map, C_j)
     # loss = F.binary_cross_entropy(Heat_map, C_j)
-    # loss = l2_loss(Heat_map, C_j)
+    loss = F.mse_loss(Heat_map, C_j)
     return weight * loss
 
-def EmbeddingLoss(pred, label, weight=1.):
+def EmbeddingLoss(pred, label, weight=2.):
     label = label.reshape(pred.size())
-    loss = l2_loss(pred, label)
+    # loss = l2_loss(pred, label)
     # loss = F.mse_loss(pred, label)
     # loss = IOU_loss(pred, label)
-    # loss = dice_loss(pred, label)
+    loss = dice_loss(pred, label)
     # loss = F.binary_cross_entropy(pred, label)
     # loss = lovasz_hinge(pred, label, per_image=False, ignore=True)
     return weight * loss

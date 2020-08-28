@@ -23,6 +23,7 @@ class TrainData(Dataset):
             ])
 
     def __len__(self):
+        # return 1
         return len(self.file_names) - self.time + 1
 
     def __getitem__(self, idx):
@@ -103,7 +104,7 @@ class TestData(Dataset):
         return images
 
 
-def Loader(data_path, batch_size, time, num_workers, shuffle=True):
+def Loader(data_path, batch_size, time, num_workers, shuffle=False):
     print("Initiate DataLoader")
     train_dataset = TrainData(data_path, time)
     valid_dataset = ValidData(data_path, time)

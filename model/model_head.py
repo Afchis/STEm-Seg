@@ -27,7 +27,7 @@ class STEmSeg(nn.Module):
         Var = Var_Emb[:, :3]
         Emb = Var_Emb[:, 3:]
         Heat_map = self.sigmoid(Heat_map)
-        Var = self.softplus(Var)
+        Var = Var.exp()
         Emb = Emb + self.tyxm.detach()
         return Heat_map, Var, Emb
 
