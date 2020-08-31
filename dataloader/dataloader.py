@@ -125,9 +125,15 @@ class TestData(Dataset):
                 self.data_path + "/JPEGImages/480p/" + self.single_obj_list[idx] + "/" + file_names[randint+time])
             image = self.trans(image)
             images.append(image)
+            mask = Image.open(
+                self.data_path + "/Annotations_unsupervised/480p/" + self.single_obj_list[idx] + "/" + file_names[randint+time][:-3]+ "png").convert('L')
+            mask4 = self.trans4(mask)
+            mask4 = (mask4 > 0).float()
+            masks4.append(mask4)
 
         images = torch.stack(images, dim=0) # [t, c, h, w]
-        return images
+        masks4 = torch.stack(masks4, dim=1) # [c, t, h, w]
+        return images, masks4
 
 
 

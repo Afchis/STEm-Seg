@@ -9,7 +9,7 @@ from model.model_head import STEmSeg
 from utils.cluster import Cluster
 from dataloader.dataloader import Loader
 # import def()
-from loss_metric.losses import SmoothLoss, CenterLoss, EmbeddingLoss
+from loss_metric.losses import SmoothLoss, CenterLoss, EmbeddingLoss, IoU_metric
 from utils.visual_helper import Visual
 
 
@@ -60,6 +60,9 @@ def train():
     for epoch in range(args.epochs):
         train_Sloss, train_Closs, train_Eloss, train_Tloss = 0, 0, 0, 0
         valid_Sloss, valid_Closs, valid_Eloss, valid_Tloss = 0, 0, 0, 0
+        train_metric = 0
+        valid_metric = 0
+        test_metric = 0
         if args.train:
             for i, data in enumerate(data_loader["train"]):
                 model.train()
@@ -76,6 +79,7 @@ def train():
                 train_Closs += center_loss.item()
                 train_Eloss += embedding_loss.item()
                 train_Tloss += loss.item()
+                train_metric += IoU_metric(masks4, (pred_masks>0.5).float())
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
@@ -86,16 +90,18 @@ def train():
             train_Closs = train_Closs/len(data_loader["train"])
             train_Eloss = train_Eloss/len(data_loader["train"])
             train_Tloss = train_Tloss/len(data_loader["train"])
-            print("epoch: ", epoch, "TotalLoss: %.4f" % train_Tloss, \
-                "SLoss: %.4f" % train_Sloss, "CLoss: %.4f" % train_Closs, "ELoss: %.4f" % train_Eloss)
+            train_metric =  train_metric/len(data_loader["train"])
+            print("epoch: ", epoch, "TotalLoss: %.4f" % train_Tloss, "IoU_metric: %.4f" % train_metric)
+            print("SLoss: %.4f" % train_Sloss, "CLoss: %.4f" % train_Closs, "ELoss: %.4f" % train_Eloss)
             if epoch % 10 == 0 and epoch != 0:
                 torch.save(model.state_dict(), 'ignore/weights/%s.pth' % args.w)
                 print("Save weights: %s.pth" % args.w)
             if args.tb != "None":
                 writer.add_scalars('%s_Total_loss' % args.tb, {'train' : train_Tloss}, epoch)
-                writer.add_scalars('%s_Smooth_loss' % args.tb, {'train' : train_Sloss}, epoch)
-                writer.add_scalars('%s_Center_loss' % args.tb, {'train' : train_Closs}, epoch)
-                writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'train' : train_Eloss}, epoch)
+                # writer.add_scalars('%s_Smooth_loss' % args.tb, {'train' : train_Sloss}, epoch)
+                # writer.add_scalars('%s_Center_loss' % args.tb, {'train' : train_Closs}, epoch)
+                # writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'train' : train_Eloss}, epoch)
+                writer.add_scalars('%s_IoU_metric' % args.tb, {'train' : train_metric}, epoch)
 
             for i, data in enumerate(data_loader["valid"]):
                 model.eval()
@@ -112,26 +118,34 @@ def train():
                 valid_Closs += center_loss.item()
                 valid_Eloss += embedding_loss.item()
                 valid_Tloss += loss.item()
+                valid_metric += IoU_metric(masks4, (pred_masks>0.5).float())
                 if args.vis == True:
                     Visual(pred_masks, Heat_map.reshape(pred_masks.size()), i, 'valid')
             valid_Sloss = valid_Sloss/len(data_loader["valid"])
             valid_Closs = valid_Closs/len(data_loader["valid"])
             valid_Eloss = valid_Eloss/len(data_loader["valid"])
             valid_Tloss = valid_Tloss/len(data_loader["valid"])
-            print("epoch: ", epoch, "TotalLoss: %.4f" % valid_Tloss, \
-                    "SLoss: %.4f" % valid_Sloss, "CLoss: %.4f" % valid_Closs, "ELoss: %.4f" % valid_Eloss)
+            valid_metric = valid_metric/len(data_loader["train"])
+            print("epoch: ", epoch, "TotalLoss: %.4f" % valid_Tloss, "IoU_metric: %.4f" % valid_metric)
+            print("SLoss: %.4f" % valid_Sloss, "CLoss: %.4f" % valid_Closs, "ELoss: %.4f" % valid_Eloss)
             if args.tb != "None":
                 writer.add_scalars('%s_Total_loss' % args.tb, {'valid' : valid_Tloss}, epoch)
-                writer.add_scalars('%s_Smooth_loss' % args.tb, {'valid' : valid_Sloss}, epoch)
-                writer.add_scalars('%s_Center_loss' % args.tb, {'valid' : valid_Closs}, epoch)
-                writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'valid' : valid_Eloss}, epoch)
+                # writer.add_scalars('%s_Smooth_loss' % args.tb, {'valid' : valid_Sloss}, epoch)
+                # writer.add_scalars('%s_Center_loss' % args.tb, {'valid' : valid_Closs}, epoch)
+                # writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'valid' : valid_Eloss}, epoch)
+                writer.add_scalars('%s_IoU_metric' % args.tb, {'valid' : valid_metric}, epoch)
             
-        for i, images in enumerate(data_loader["test"]): 
+        for i, data in enumerate(data_loader["test"]): 
             model.eval()
-            images = images.cuda()
+            images, masks4 = data
+            images, masks4 = images.cuda(), masks4.cuda()
             outs = model(images)
             pred_masks = cluster.test_run(outs, iter_in_epoch=i)
-        print("test_color")
+            test_metric += IoU_metric(masks4, pred_masks)
+        test_metric = test_metric/len(data_loader["train"])
+        print("test metric: %.4f" % test_metric)
+        if args.tb != "None":
+            writer.add_scalars('%s_IoU_metric' % args.tb, {'test' : test_metric}, epoch)
 
 if __name__ == "__main__":
     train()

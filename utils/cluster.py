@@ -15,8 +15,8 @@ class Cluster():
         return torch.exp(B)
 
     def _Sigma_Nyu_(self, Heat_map, Var, Emb):
-        # if Heat_map.max() < 0.01:
-        #     return False, False
+        if Heat_map.max() < 0.7:
+            return False, False
         pos = Heat_map.view(Heat_map.size(0), -1).argmax(dim=1)
         Sigma = Var.view(Var.size(0), Var.size(1), -1)[(torch.arange(Heat_map.size(0))), :, pos]
         Nyu = Emb.view(Emb.size(0), Emb.size(1), -1)[(torch.arange(Heat_map.size(0))), :, pos]
@@ -30,15 +30,15 @@ class Cluster():
         pred = self._eq2_(Emb, Sigma, Nyu)
         return pred
 
-    def test_run(self, outs, iter_in_epoch, iters=7, treshhold=0.9):
+    def test_run(self, outs, iter_in_epoch, iters=7, treshhold=0.5):
         Heat_map, Var, Emb = outs
         unused_masks = torch.ones_like(Heat_map).cuda()
         output_masks = torch.zeros_like(Heat_map).cuda()
         visual_list = list()
         for i in range(iters):
             Sigma, Nyu = self._Sigma_Nyu_(Heat_map*unused_masks, Var*unused_masks, Emb*unused_masks)
-            # if Sigma is False:
-            #     break
+            if Sigma is False:
+                break
             pred = self._eq2_(Emb*unused_masks, Sigma, Nyu).view(Heat_map.size())
             visual_list.append(pred.ge(treshhold).float())
             output_masks += pred.ge(treshhold).float()
