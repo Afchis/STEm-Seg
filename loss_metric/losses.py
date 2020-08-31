@@ -60,7 +60,7 @@ def CenterLoss(outs, masks4, weight=1.):
     loss = F.mse_loss(Heat_map, C_j)
     return weight * loss
 
-def EmbeddingLoss(pred, label, weight=2.):
+def EmbeddingLoss(pred, label, weight=1.):
     label = label.reshape(pred.size())
     # loss = l2_loss(pred, label)
     # loss = F.mse_loss(pred, label)
@@ -69,3 +69,13 @@ def EmbeddingLoss(pred, label, weight=2.):
     # loss = F.binary_cross_entropy(pred, label)
     # loss = lovasz_hinge(pred, label, per_image=False, ignore=True)
     return weight * loss
+
+
+# Metrics
+def IoU_metric(x, y, smooth = 1.):
+    y = y.reshape(x.size())
+    intersection = (x * y).sum(dim=1).sum(dim=1).sum(dim=1)
+    x_sum = x.sum(dim=1).sum(dim=1).sum(dim=1)
+    y_sum = y.sum(dim=1).sum(dim=1).sum(dim=1)
+    metric = ((intersection + smooth) / (x_sum + y_sum - intersection + smooth))
+    return metric.mean()

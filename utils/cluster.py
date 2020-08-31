@@ -30,20 +30,19 @@ class Cluster():
         pred = self._eq2_(Emb, Sigma, Nyu)
         return pred
 
-    def test_run(self, outs, iter_in_epoch, iters=4):
+    def test_run(self, outs, iter_in_epoch, iters=7, treshhold=0.9):
         Heat_map, Var, Emb = outs
-        # unused_masks = torch.ones_like(Heat_map).cuda()
+        unused_masks = torch.ones_like(Heat_map).cuda()
         output_masks = torch.zeros_like(Heat_map).cuda()
-        unused_masks = output_masks.eq(0).float()
         visual_list = list()
         for i in range(iters):
-            Sigma, Nyu = self._Sigma_Nyu_(Heat_map*output_masks.eq(0).float(), Var*output_masks.eq(0).float(), Emb*output_masks.eq(0).float())
+            Sigma, Nyu = self._Sigma_Nyu_(Heat_map*unused_masks, Var*unused_masks, Emb*unused_masks)
             # if Sigma is False:
             #     break
-            pred = self._eq2_(Emb, Sigma, Nyu).view(Heat_map.size())
-            visual_list.append(pred)
-            output_masks += pred.ge(0.95).float()
-            unused_masks += unused_masks * output_masks.eq(0).float()
+            pred = self._eq2_(Emb*unused_masks, Sigma, Nyu).view(Heat_map.size())
+            visual_list.append(pred.ge(treshhold).float())
+            output_masks += pred.ge(treshhold).float()
+            unused_masks = unused_masks*pred.lt(treshhold).float()
         if self.vis == True:
             Visual_clusters(visual_list, iter_in_epoch)   
         return output_masks[:, 0]

@@ -20,7 +20,7 @@ parser.add_argument("--w", type=str, default="default_weights", help="weights na
 parser.add_argument("--time", type=int, default=8, help="Time size")
 parser.add_argument("--batch", type=int, default=1, help="Batch size")
 parser.add_argument("--workers", type=int, default=1, help="Num workers")
-parser.add_argument("--epochs", type=int, default=1000, help="Num epochs")
+parser.add_argument("--epochs", type=int, default=1, help="Num epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("--lr_step", type=int, default=200, help="Learning scheduler step")
 parser.add_argument("--lr_gamma", type=float, default=0.90, help="Learning scheduler gamma")
@@ -57,9 +57,9 @@ optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=0.0005)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
 
 def train():
-    tb_iter = 0
     for epoch in range(args.epochs):
-        # print("*"*32, "epoch: ",  epoch, "*"*32)
+        train_Sloss, train_Closs, train_Eloss, train_Tloss = 0, 0, 0, 0
+        valid_Sloss, valid_Closs, valid_Eloss, valid_Tloss = 0, 0, 0, 0
         if args.train:
             for i, data in enumerate(data_loader["train"]):
                 model.train()
@@ -72,23 +72,30 @@ def train():
                 center_loss = CenterLoss(outs, masks4)
                 embedding_loss = EmbeddingLoss(pred_masks, masks4)
                 loss = smooth_loss + center_loss + embedding_loss
-                print("iter: ", i, "TotalLoss: %.4f" % loss.item(), \
-                    "SLoss: %.4f" % smooth_loss.item(), "CLoss: %.4f" % center_loss.item(), "ELoss: %.4f" % embedding_loss.item())
+                train_Sloss += smooth_loss.item()
+                train_Closs += center_loss.item()
+                train_Eloss += embedding_loss.item()
+                train_Tloss += loss.item()
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
-                if args.tb != "None":
-                    writer.add_scalars('%s_Total_loss' % args.tb, {'train' : loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Smooth_loss' % args.tb, {'train' : smooth_loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Center_loss' % args.tb, {'train' : center_loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'train' : embedding_loss.item()}, tb_iter)
-                    tb_iter += 1
                 if args.vis == True:
                     Visual(pred_masks, Heat_map.reshape(pred_masks.size()), i, 'train')
-            if epoch % 10 == 0:
+            train_Sloss = train_Sloss/len(data_loader["train"])
+            train_Closs = train_Closs/len(data_loader["train"])
+            train_Eloss = train_Eloss/len(data_loader["train"])
+            train_Tloss = train_Tloss/len(data_loader["train"])
+            print("epoch: ", epoch, "TotalLoss: %.4f" % train_Tloss, \
+                "SLoss: %.4f" % train_Sloss, "CLoss: %.4f" % train_Closs, "ELoss: %.4f" % train_Eloss)
+            if epoch % 10 == 0 and epoch != 0:
                 torch.save(model.state_dict(), 'ignore/weights/%s.pth' % args.w)
                 print("Save weights: %s.pth" % args.w)
+            if args.tb != "None":
+                writer.add_scalars('%s_Total_loss' % args.tb, {'train' : train_Tloss}, epoch)
+                writer.add_scalars('%s_Smooth_loss' % args.tb, {'train' : train_Sloss}, epoch)
+                writer.add_scalars('%s_Center_loss' % args.tb, {'train' : train_Closs}, epoch)
+                writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'train' : train_Eloss}, epoch)
 
             for i, data in enumerate(data_loader["valid"]):
                 model.eval()
@@ -101,26 +108,30 @@ def train():
                 center_loss = CenterLoss(outs, masks4)
                 embedding_loss = EmbeddingLoss(pred_masks, masks4)
                 loss = smooth_loss + center_loss + embedding_loss
-                print("iter: ", i, "TotalLoss: %.4f" % loss.item(), \
-                    "SLoss: %.4f" % smooth_loss.item(), "CLoss: %.4f" % center_loss.item(), "ELoss: %.4f" % embedding_loss.item())
-                if args.tb != "None":
-                    writer.add_scalars('%s_Total_loss' % args.tb, {'valid' : loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Smooth_loss' % args.tb, {'valid' : smooth_loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Center_loss' % args.tb, {'valid' : center_loss.item()}, tb_iter)
-                    writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'valid' : embedding_loss.item()}, tb_iter)
-                    tb_iter += 1
+                valid_Sloss += smooth_loss.item()
+                valid_Closs += center_loss.item()
+                valid_Eloss += embedding_loss.item()
+                valid_Tloss += loss.item()
                 if args.vis == True:
                     Visual(pred_masks, Heat_map.reshape(pred_masks.size()), i, 'valid')
-
+            valid_Sloss = valid_Sloss/len(data_loader["valid"])
+            valid_Closs = valid_Closs/len(data_loader["valid"])
+            valid_Eloss = valid_Eloss/len(data_loader["valid"])
+            valid_Tloss = valid_Tloss/len(data_loader["valid"])
+            print("epoch: ", epoch, "TotalLoss: %.4f" % valid_Tloss, \
+                    "SLoss: %.4f" % valid_Sloss, "CLoss: %.4f" % valid_Closs, "ELoss: %.4f" % valid_Eloss)
+            if args.tb != "None":
+                writer.add_scalars('%s_Total_loss' % args.tb, {'valid' : valid_Tloss}, epoch)
+                writer.add_scalars('%s_Smooth_loss' % args.tb, {'valid' : valid_Sloss}, epoch)
+                writer.add_scalars('%s_Center_loss' % args.tb, {'valid' : valid_Closs}, epoch)
+                writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'valid' : valid_Eloss}, epoch)
             
         for i, images in enumerate(data_loader["test"]): 
             model.eval()
             images = images.cuda()
             outs = model(images)
             pred_masks = cluster.test_run(outs, iter_in_epoch=i)
-            if args.vis == True:
-                Visual(pred_masks, None, i, 'test')
-
+        print("test_color")
 
 if __name__ == "__main__":
     train()

@@ -1,4 +1,5 @@
 import os
+from random import randrange
 
 from PIL import Image
 
@@ -7,12 +8,20 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 
+single_obj_list = ['bear', 'blackswan', 'boat', 'breakdance', 'breakdance-flare', 'bus',
+                   'camel', 'car-roundabout', 'car-shadow', 'car-turn', 'cows',
+                   'dance-jump', 'dance-twirl', 'dog', 'drift-chicane',
+                   'drift-straight', 'drift-turn', 'elephant', 'flamingo', 'goat',
+                   'koala', 'libby', 'mallard-fly', 'mallard-water', 'parkour',
+                   'rallye', 'rhino', 'soccerball', 'varanus-cage']
+
+
 class TrainData(Dataset):
     def __init__(self, data_path, time):
         super().__init__()
+        self.single_obj_list = single_obj_list
         self.data_path = data_path
         self.time = time
-        self.file_names = sorted(os.listdir(data_path + "/JPEGImages/480p/libby/"))[:34]
         self.trans = transforms.Compose([
             transforms.Resize((512, 512), interpolation=0),
             transforms.ToTensor()
@@ -23,18 +32,21 @@ class TrainData(Dataset):
             ])
 
     def __len__(self):
-        # return 1
-        return len(self.file_names) - self.time + 1
+        return len(single_obj_list)
 
     def __getitem__(self, idx):
         images = list()
         masks4 = list()
+        file_names = sorted(os.listdir(self.data_path + "/JPEGImages/480p/" + self.single_obj_list[idx]))
+        file_names = file_names[:int(len(file_names)*0.8)]
+        randint = randrange((len(file_names)-self.time+1))
         for time in range(self.time):
-            image = Image.open(self.data_path + "/JPEGImages/480p/libby/" + self.file_names[idx+time])
+            image = Image.open(
+                self.data_path + "/JPEGImages/480p/" + self.single_obj_list[idx] + "/" + file_names[randint+time])
             image = self.trans(image)
             images.append(image)
-            mask = Image.open(self.data_path + "/Annotations_unsupervised/480p/libby/" + self.file_names[idx+time][:-3] + "png").convert('L')
-
+            mask = Image.open(
+                self.data_path + "/Annotations_unsupervised/480p/" + self.single_obj_list[idx] + "/" + file_names[randint+time][:-3]+ "png").convert('L')
             mask4 = self.trans4(mask)
             mask4 = (mask4 > 0).float()
             masks4.append(mask4)
@@ -47,9 +59,9 @@ class TrainData(Dataset):
 class ValidData(Dataset):
     def __init__(self, data_path, time):
         super().__init__()
+        self.single_obj_list = single_obj_list
         self.data_path = data_path
         self.time = time
-        self.file_names = sorted(os.listdir(data_path + "/JPEGImages/480p/libby/"))[34:]
         self.trans = transforms.Compose([
             transforms.Resize((512, 512), interpolation=0),
             transforms.ToTensor()
@@ -60,17 +72,21 @@ class ValidData(Dataset):
             ])
 
     def __len__(self):
-        return len(self.file_names) - self.time + 1
+        return len(single_obj_list)
 
     def __getitem__(self, idx):
         images = list()
         masks4 = list()
+        file_names = sorted(os.listdir(self.data_path + "/JPEGImages/480p/" + self.single_obj_list[idx]))
+        file_names = file_names[int(len(file_names)*0.8):]
+        randint = randrange((len(file_names)-self.time+1))
         for time in range(self.time):
-            image = Image.open(self.data_path + "/JPEGImages/480p/libby/" + self.file_names[idx+time])
+            image = Image.open(
+                self.data_path + "/JPEGImages/480p/" + self.single_obj_list[idx] + "/" + file_names[randint+time])
             image = self.trans(image)
             images.append(image)
-            mask = Image.open(self.data_path + "/Annotations_unsupervised/480p/libby/" + self.file_names[idx+time][:-3] + "png").convert('L')
-
+            mask = Image.open(
+                self.data_path + "/Annotations_unsupervised/480p/" + self.single_obj_list[idx] + "/" + file_names[randint+time][:-3]+ "png").convert('L')
             mask4 = self.trans4(mask)
             mask4 = (mask4 > 0).float()
             masks4.append(mask4)
@@ -83,28 +99,40 @@ class ValidData(Dataset):
 class TestData(Dataset):
     def __init__(self, data_path, time):
         super().__init__()
+        self.single_obj_list = single_obj_list
         self.data_path = data_path
         self.time = time
-        self.file_names = sorted(os.listdir(data_path + "/JPEGImages/480p/libby/"))[34:]
         self.trans = transforms.Compose([
             transforms.Resize((512, 512), interpolation=0),
             transforms.ToTensor()
             ])
+        self.trans4 = transforms.Compose([
+            transforms.Resize((128, 128), interpolation=0),
+            transforms.ToTensor()
+            ])
 
     def __len__(self):
-        return len(self.file_names) - self.time + 1
+        return len(single_obj_list)
 
     def __getitem__(self, idx):
         images = list()
+        masks4 = list()
+        file_names = sorted(os.listdir(self.data_path + "/JPEGImages/480p/" + self.single_obj_list[idx]))
+        file_names = file_names[int(len(file_names)*0.8):]
+        randint = randrange((len(file_names)-self.time+1))
         for time in range(self.time):
-            image = Image.open(self.data_path + "/JPEGImages/480p/libby/" + self.file_names[idx+time])
+            image = Image.open(
+                self.data_path + "/JPEGImages/480p/" + self.single_obj_list[idx] + "/" + file_names[randint+time])
             image = self.trans(image)
             images.append(image)
+
         images = torch.stack(images, dim=0) # [t, c, h, w]
         return images
 
 
-def Loader(data_path, batch_size, time, num_workers, shuffle=False):
+
+
+def Loader(data_path, batch_size, time, num_workers, shuffle=True):
     print("Initiate DataLoader")
     train_dataset = TrainData(data_path, time)
     valid_dataset = ValidData(data_path, time)
@@ -133,13 +161,13 @@ def Loader(data_path, batch_size, time, num_workers, shuffle=False):
     return data_loader
 
 def main(idx):
-    data = TrainData(data_path="./ignore/data/DAVIS", time=8)
+    data = ValidData(data_path="./ignore/data/DAVIS", time=8)
     return data[idx]
 
 
 if __name__ == '__main__':
     print('NUMBER!')
     idx = int(input())
-    images, masks, masks4 = main(idx)
-    print(images.shape, masks.shape, masks4.shape)
+    images, masks4 = main(idx)
+    print(images.shape, masks4.shape)
 

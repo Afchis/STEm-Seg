@@ -8,12 +8,15 @@ to_pil = transforms.ToPILImage()
 resize = transforms.Resize((128, 128), interpolation=0)
 
 colors = {
-    "white" : torch.tensor([1., 1., 1.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
-    "red" : torch.tensor([1., 0., 0.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
-    "green" : torch.tensor([0., 1., 0.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
-    "blue" : torch.tensor([0., 0., 1.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda()
+    "0white" : torch.tensor([1., 1., 1.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
+    "1red" : torch.tensor([1., 0., 0.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
+    "2green" : torch.tensor([0., 1., 0.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
+    "3blue" : torch.tensor([0., 0., 1.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
+    "4yellow" : torch.tensor([1., 1., 0.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
+    "5purple" : torch.tensor([1., 0., 1.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
+    "6purple" : torch.tensor([0., 1., 1.]).reshape(1, 3, 1, 1, 1).expand(1, 3, 8, 128, 128).cuda(),
 }
-color_names = ["white", "red", "green", "blue"]
+color_names = ["0white", "1red", "2green", "3blue", "4yellow", "5purple", "6purple"]
 
 
 def Visual(pred_masks, Heat_map, i, mode):

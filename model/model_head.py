@@ -9,7 +9,7 @@ class STEmSeg(nn.Module):
         super().__init__()
         self.encoder = Encoder()
         self.decoder_heatmap = Decoder(out_channel=1)
-        self.decoder_embedding = Decoder(out_channel=6)
+        self.decoder_embedding = Decoder(out_channel=7)
         self.sigmoid = nn.Sigmoid()
         self.softplus = nn.Softplus()
 
@@ -17,7 +17,8 @@ class STEmSeg(nn.Module):
         self.xm = torch.linspace(0, 1, 128).reshape(1, 1, 1, 1, -1).expand(self.b, 1, 8, 128, 128)
         self.ym = torch.linspace(0, 1, 128).reshape(1, 1, 1, -1, 1).expand(self.b, 1, 8, 128, 128)
         self.tm = torch.linspace(0, 1, 8).reshape(1, 1, -1, 1, 1).expand(self.b, 1, 8, 128, 128)
-        self.tyxm = torch.cat([self.xm, self.ym, self.tm], dim=1).cuda()
+        self.fm = torch.zeros_like(self.xm)
+        self.ftyxm = torch.cat([self.xm, self.ym, self.tm, self.fm], dim=1).cuda()
 
     def forward(self, images):
         out = self.encoder(images)
@@ -28,7 +29,7 @@ class STEmSeg(nn.Module):
         Emb = Var_Emb[:, 3:]
         Heat_map = self.sigmoid(Heat_map)
         Var = Var.exp()
-        Emb = Emb + self.tyxm.detach()
+        Emb = Emb + self.ftyxm.detach()
         return Heat_map, Var, Emb
 
 
