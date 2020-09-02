@@ -5,31 +5,47 @@ from .model_parts import Encoder, Decoder
 
 
 class STEmSeg(nn.Module):
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, mode, size):
         super().__init__()
+        self.size = int(size/4)
+        self.b = batch_size
+        self.m = mode
+        self.xm = torch.linspace(0, 1, self.size).reshape(1, 1, 1, 1, -1).expand(self.b, 1, 8, self.size, self.size)
+        self.ym = torch.linspace(0, 1, self.size).reshape(1, 1, 1, -1, 1).expand(self.b, 1, 8, self.size, self.size)
+        self.tm = torch.linspace(0, 1, 8).reshape(1, 1, -1, 1, 1).expand(self.b, 1, 8, self.size, self.size)
+        self.fm = torch.zeros_like(self.xm)
+        self.num = {
+            "xyt" : 6,
+            "xyf" : 6,
+            "xytf" : 8,
+            "xyff" : 8
+        }
+        self.mode = {
+            "xyt" : [self.xm, self.ym, self.tm],
+            "xyf" : [self.xm, self.ym, self.fm],
+            "xytf" : [self.xm, self.ym, self.tm, self.fm],
+            "xyff" : [self.xm, self.ym, self.fm, self.fm]
+        }
+        self.xytm = torch.cat(self.mode[self.m], dim=1).cuda()
         self.encoder = Encoder()
         self.decoder_heatmap = Decoder(out_channel=1)
-        self.decoder_embedding = Decoder(out_channel=8)
+        self.decoder_embedding = Decoder(out_channel=self.num[self.m])
         self.sigmoid = nn.Sigmoid()
         self.softplus = nn.Softplus()
 
-        self.b = batch_size
-        self.xm = torch.linspace(0, 1, 128).reshape(1, 1, 1, 1, -1).expand(self.b, 1, 8, 128, 128)
-        self.ym = torch.linspace(0, 1, 128).reshape(1, 1, 1, -1, 1).expand(self.b, 1, 8, 128, 128)
-        self.tm = torch.linspace(0, 1, 8).reshape(1, 1, -1, 1, 1).expand(self.b, 1, 8, 128, 128)
-        self.fm = torch.zeros_like(self.xm)
-        self.ftyxm = torch.cat([self.xm, self.ym, self.fm, self.fm], dim=1).cuda()
+
 
     def forward(self, images):
+        num = int(self.num[self.m]/2)
         out = self.encoder(images)
         Heat_map = self.decoder_heatmap(out)
         Var_Emb = self.decoder_embedding(out)
         # Heat_map = Var_Emb[:, :1]
-        Var = Var_Emb[:, :4]
-        Emb = Var_Emb[:, 4:]
+        Var = Var_Emb[:, :num]
+        Emb = Var_Emb[:, num:]
         Heat_map = self.sigmoid(Heat_map)
         Var = Var.exp()
-        Emb = Emb + self.ftyxm.detach()
+        Emb = Emb + self.xytm.detach()
         return Heat_map, Var, Emb
 
 
