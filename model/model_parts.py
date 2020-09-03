@@ -45,10 +45,11 @@ class Encoder(nn.Module):
     def forward(self, x):
         B_size, T_size, Ch_size, H_size, W_size = x.size()
         c = x.reshape(-1, Ch_size, H_size, W_size) # reshape [b, t, c, h, w] --> [b*t, c, h, w]
-        c4 = self.layer0(c)
-        c8 = self.layer1(c4)
-        c16 = self.layer2(c8)
-        c32 = self.layer3(c16)
+        with torch.no_grad():
+            c4 = self.layer0(c)
+            c8 = self.layer1(c4)
+            c16 = self.layer2(c8)
+            c32 = self.layer3(c16)
 
         f32 = self.top_layer(c32)
         f16 = self._upsample_add(f32, self.lat_layer2(c16))

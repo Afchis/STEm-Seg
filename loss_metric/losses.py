@@ -72,14 +72,20 @@ def CenterLoss(outs, masks, weight=1.):
     return weight * loss / l_i
 
 def EmbeddingLoss(pred_masks, masks, weight=1.):
-    masks = masks.reshape(pred_masks.size())
-    loss = _dice_loss_(pred_masks, masks.detach())
-    return weight * loss
+    loss = 0
+    for batch in range(masks.size(0)):
+        masks_j = list()
+        for instance in range(masks[batch].max().item()):
+            instance += 1
+            masks_j.append(masks[batch].eq(instance).float().permute(3, 0, 1, 2))
+        masks_j = torch.cat(masks_j, dim=0)
+        loss += _IOU_loss_(pred_masks[batch], masks_j.detach())   
+    return weight * loss / masks.size(0)
 
-def Losses(pred_masks, outs, masks, masks4emb):
+def Losses(pred_masks, outs, masks):
     smooth_loss = SmoothLoss(outs, masks)
     center_loss = CenterLoss(outs, masks)
-    embedding_loss = EmbeddingLoss(pred_masks, masks4emb)
+    embedding_loss = EmbeddingLoss(pred_masks, masks)
     total_loss = smooth_loss + center_loss + embedding_loss
     return total_loss, smooth_loss, center_loss, embedding_loss
 

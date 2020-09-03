@@ -22,9 +22,9 @@ parser.add_argument("--time", type=int, default=8, help="Time size")
 parser.add_argument("--batch", type=int, default=1, help="Batch size")
 parser.add_argument("--workers", type=int, default=1, help="Num workers")
 parser.add_argument("--epochs", type=int, default=1, help="Num epochs")
-parser.add_argument("--lr", type=float, default=0.005, help="Learning rate")
-parser.add_argument("--lr_step", type=int, default=100, help="Learning scheduler step")
-parser.add_argument("--lr_gamma", type=float, default=0.75, help="Learning scheduler gamma")
+parser.add_argument("--lr", type=float, default=0.05, help="Learning rate")
+parser.add_argument("--lr_step", type=int, default=200, help="Learning scheduler step")
+parser.add_argument("--lr_gamma", type=float, default=0.9, help="Learning scheduler gamma")
 parser.add_argument("--tb", type=str, default="None", help="Tensorboard")
 parser.add_argument("--vis", type=bool, default=False, help="Train visual")
 parser.add_argument("--train", type=bool, default=False, help="Train")
@@ -33,9 +33,8 @@ parser.add_argument("--mode", type=str, default="xyt", help="Model mode, type 'x
 args = parser.parse_args()
     
 # init tensorboard: !tensorboard --logdir=ignore/runs
-if args.tb != "None":
-    print("Tensorboard name: ", args.tb)
-    writer = SummaryWriter('ignore/runs')
+print("Tensorboard name: ", args.tb)
+writer = SummaryWriter('ignore/runs')
 
 # init model
 model = STEmSeg(batch_size=args.batch, mode=args.mode, size=args.size).cuda()
@@ -51,7 +50,7 @@ print("Params", params)
 # init cluster
 cluster = Cluster(vis=args.vis)
 # init dataloader
-data_loader = Loader(size=args.size, batch_size=args.batch, time=args.time, num_workers=args.workers, shuffle=True)
+data_loader = Loader(size=args.size, batch_size=args.batch, time=args.time, num_workers=args.workers, shuffle=False)
 
 # init optimizer and lr_scheduler
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=0.0005)
@@ -82,12 +81,12 @@ class AccumData():
             self.disp[key] += x
 
     def printer(self, i):
-        if i % 2 == 0:
-            print("Loss: %0.4f" % (self.disp["train_Tloss"]/self.disp["iter"]),
-                  "MetricIoU: %0.4f" % (self.disp["train_metric"]/self.disp["iter"]))
-            print("Smooth: %0.4f" % (self.disp["train_Sloss"]/self.disp["iter"]),
-                  "Center: %0.4f" % (self.disp["train_Closs"]/self.disp["iter"]),
-                  "Ebmedding: %0.4f" % (self.disp["train_Eloss"]/self.disp["iter"]))
+        # if i % 2 == 0:
+        print("Iter: ", i, "Loss: %0.4f" % (self.disp["train_Tloss"]/self.disp["iter"]),
+              "MetricIoU: %0.4f" % (self.disp["train_metric"]/self.disp["iter"]))
+        print("Smooth: %0.4f" % (self.disp["train_Sloss"]/self.disp["iter"]),
+              "Center: %0.4f" % (self.disp["train_Closs"]/self.disp["iter"]),
+              "Ebmedding: %0.4f" % (self.disp["train_Eloss"]/self.disp["iter"]))
 
     def tensorboard(self, writer, tb, epoch):
         train_Tloss = self.disp["train_Tloss"]/self.disp["iter"]
@@ -102,7 +101,7 @@ class AccumData():
     def visual(self, vis, Visual, pred_masks, outs, i, mode):
         if vis is True:
             Heat_map, _, _ = outs
-            Visual(pred_masks, Heat_map.reshape(pred_masks.size()), i, mode)
+            Visual(pred_masks, Heat_map, i, mode)
 
 
 
@@ -118,14 +117,14 @@ def train():
                 print("Save weights: %s.pth" % args.w)
             for i, data in enumerate(data_loader["train"]):
                 i += 1
-                images, masks, masks4emb = data
-                images, masks, masks4emb = images.cuda(), masks.cuda(), masks4emb.cuda()
+                images, masks = data
+                images, masks = images.cuda(), masks.cuda()
                 if images.size(0) != args.batch:
                     break
                 outs = model(images)
                 pred_masks = cluster.train(outs, masks)
-                total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, masks4emb)
-                train_metric = IoU_metric(pred_masks, masks4emb)
+                total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks)
+                train_metric = IoU_metric(pred_masks, masks)
                 accum_data.update("train_Sloss", smooth_loss)
                 accum_data.update("train_Closs", center_loss)
                 accum_data.update("train_Eloss", embedding_loss)
