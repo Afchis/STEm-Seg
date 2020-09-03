@@ -1,5 +1,5 @@
 import torch
-from .visual_helper import Visual_clusters
+# from .visual_helper import Visual_clusters
 
 
 class Cluster():
@@ -21,19 +21,20 @@ class Cluster():
 
     def train(self, outs, masks):
         Heat_map, Var, Emb = outs
-        pred_list = list()
-        pred = torch.zeros([Heat_map.size(2), Heat_map.size(3), Heat_map.size(4)]).cuda()
+        pred_batch = list()
         for batch in range(Heat_map.size(0)):
+            pred = list()
             for instance in range(masks[batch].max().item()):
                 instance += 1
                 masks_j = masks[batch].eq(instance).float().permute(3, 0, 1, 2).detach()
                 Var_j, Emb_j = Var[batch]*masks_j, Emb[batch]*masks_j
                 Sigma = Var_j.sum(3).sum(2).sum(1) / masks_j.sum(3).sum(2).sum(1)
                 Myu = Emb_j.sum(3).sum(2).sum(1) / masks_j.sum(3).sum(2).sum(1)
-                pred += self._eq2_(Emb[batch], Sigma, Myu)
-            pred_list.append(pred)
-        pred_list = torch.stack(pred_list, dim=0)
-        return pred_list
+                pred.append(self._eq2_(Emb[batch], Sigma, Myu))
+            pred = torch.stack(pred, dim=0)
+            pred_batch.append(pred)
+        pred_batch = torch.stack(pred_batch, dim=0)
+        return pred_batch
 
     def test(self, outs, iter_in_epoch, iters=7, treshhold=0.5):
         Heat_map, Var, Emb = outs
@@ -49,5 +50,6 @@ class Cluster():
             output_masks += pred.ge(treshhold).float()
             unused_masks = unused_masks*pred.lt(treshhold).float()
         if self.vis == True:
-            Visual_clusters(visual_list, iter_in_epoch)   
-        return output_masks[:, 0]
+            Visual_clusters(visual_list, iter_in_epoch)
+        raise NotImplementedError  
+        # return output_masks[:, 0]
