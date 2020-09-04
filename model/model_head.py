@@ -45,7 +45,7 @@ class STEmSeg(nn.Module):
         Emb = Var_Emb[:, num:]
         Heat_map = self.sigmoid(Heat_map)
         Var = Var.exp()
-        Emb = Emb + self.xytm.to(device=images.get_device())
+        Emb = Emb + self.xytm #.to(device=images.get_device())
         return Heat_map, Var, Emb
 
 
