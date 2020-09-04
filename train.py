@@ -53,7 +53,7 @@ cluster = Cluster(vis=args.vis)
 data_loader = Loader(size=args.size, batch_size=args.batch, time=args.time, num_workers=args.workers, shuffle=True)
 
 # init optimizer and lr_scheduler
-optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=0.0005)
+optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)#, weight_decay=0.0005)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
 
 
@@ -76,52 +76,63 @@ class AccumData():
             "valid_iter" : 0
         }
 
-    def save_weights(epoch, weights_name):
+    def save_weights(self, epoch, weights_name):
         if epoch % 10 == 0 and epoch != 0:
             torch.save(model.state_dict(), 'ignore/weights/%s.pth' % weights_name)
             print("Save weights: %s.pth" % weights_name)
 
     def update(self, key, x):
-        if key is "train_iter" or "valid_iter":
+        if key is "iter_metric":
+            self.iter_metric = x
+        elif key is "train_iter":
             self.disp[key] += 1
-        elif key is "iter_metric":
-            iret_metric = x
+        elif key is "valid_iter":
+            self.disp[key] += 1
         else:
             self.disp[key] += x
 
     def printer_train(self, i):
-        # if i % 2 == 0:
-        print("Train iter: ", i, "Loss: %0.4f" % (self.disp["train_Tloss"]/self.disp["train_iter"]),
-              "MetricIoU: %0.4f" % iret_metric)
-        print("Smooth: %0.4f" % (self.disp["train_Sloss"]/self.disp["train_iter"]),
-              "Center: %0.4f" % (self.disp["train_Closs"]/self.disp["train_iter"]),
-              "Ebmedding: %0.4f" % (self.disp["train_Eloss"]/self.disp["train_iter"]))
+        if i % 5 == 0:
+            print("Train iter:", i, "Loss: %0.4f" % (self.disp["train_Tloss"]/self.disp["train_iter"]),
+                  "MetricIoU: %0.4f" % self.iter_metric)
+            # print(" "*10, "Smooth: %0.4f" % (self.disp["train_Sloss"]/self.disp["train_iter"]),
+            #       "Center: %0.4f" % (self.disp["train_Closs"]/self.disp["train_iter"]),
+            #       "Ebmedding: %0.4f" % (self.disp["train_Eloss"]/self.disp["train_iter"]))
 
     def printer_valid(self, i):
-        # if i % 2 == 0:
-        print("Valid iter: ", i, "Loss: %0.4f" % (self.disp["valid_Tloss"]/self.disp["valid_iter"]),
-              "MetricIoU: %0.4f" % iret_metric)
-        print("Smooth: %0.4f" % (self.disp["valid_Sloss"]/self.disp["valid_iter"]),
-              "Center: %0.4f" % (self.disp["valid_Closs"]/self.disp["valid_iter"]),
-              "Ebmedding: %0.4f" % (self.disp["valid_Eloss"]/self.disp["valid_iter"]))
+        if i % 5 == 0:
+            print("Valid iter:", i, "Loss: %0.4f" % (self.disp["valid_Tloss"]/self.disp["valid_iter"]),
+                  "MetricIoU: %0.4f" % self.iter_metric)
+            # print(" "*10, "Smooth: %0.4f" % (self.disp["valid_Sloss"]/self.disp["valid_iter"]),
+            #       "Center: %0.4f" % (self.disp["valid_Closs"]/self.disp["valid_iter"]),
+            #       "Ebmedding: %0.4f" % (self.disp["valid_Eloss"]/self.disp["valid_iter"]))
 
-    def printer_epoch(self, i):
-        print("Epoch train loss: %0.4f" % (self.disp["train_Tloss"]/self.disp["train_iter"]),
-              "Epoch valid loss: %0.4f" % (self.disp["valid_Tloss"]/self.disp["valid_iter"]))
-        print("Epoch train metric: %0.4f" % (self.disp["train_metric"]/self.disp["train_iter"]),
-              "Epoch valid metric: %0.4f" % (self.disp["valid_metric"]/self.disp["valid_iter"]),)
+    def printer_epoch(self):
+        print(" "*10, "TrainLoss: %0.4f" % (self.disp["train_Tloss"]/self.disp["train_iter"]),
+              "TrainIoU: %0.4f" % (self.disp["train_metric"]/self.disp["train_iter"]))
+        print(" "*10, "ValidLoss: %0.4f" % (self.disp["valid_Tloss"]/self.disp["valid_iter"]),
+              "ValidIoU: %0.4f" % (self.disp["valid_metric"]/self.disp["valid_iter"]))
 
     def tensorboard(self, writer, tb, epoch):
         train_Tloss = self.disp["train_Tloss"]/self.disp["train_iter"]
-        train_metric = self.disp["train_metric"]/self.disp["valid_iter"]
-        valid_Tloss = self.disp["valid_Tloss"]/self.disp["train_iter"]
+        train_Sloss = self.disp["train_Sloss"]/self.disp["train_iter"]
+        train_Closs = self.disp["train_Closs"]/self.disp["train_iter"]
+        train_Eloss = self.disp["train_Eloss"]/self.disp["train_iter"]
+        train_metric = self.disp["train_metric"]/self.disp["train_iter"]
+        valid_Tloss = self.disp["valid_Tloss"]/self.disp["valid_iter"]
+        valid_Sloss = self.disp["valid_Sloss"]/self.disp["valid_iter"]
+        valid_Closs = self.disp["valid_Closs"]/self.disp["valid_iter"]
+        valid_Eloss = self.disp["valid_Eloss"]/self.disp["valid_iter"]
         valid_metric = self.disp["valid_metric"]/self.disp["valid_iter"]
         if tb is not "None":
             writer.add_scalars('%s_Total_loss' % tb, {'train' : train_Tloss,
                                                       'valid' : valid_Tloss}, epoch)
-            # writer.add_scalars('%s_Smooth_loss' % args.tb, {'train' : train_Sloss}, epoch)
-            # writer.add_scalars('%s_Center_loss' % args.tb, {'train' : train_Closs}, epoch)
-            # writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'train' : train_Eloss}, epoch)
+            writer.add_scalars('%s_Smooth_loss' % args.tb, {'train' : train_Sloss,
+                                                            'valid' : valid_Sloss}, epoch)
+            writer.add_scalars('%s_Center_loss' % args.tb, {'train' : train_Closs,
+                                                            'valid' : valid_Closs}, epoch)
+            writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'train' : train_Eloss,
+                                                               'valid' : valid_Eloss}, epoch)
             writer.add_scalars('%s_IoU_metric' % tb, {'train' : train_metric,
                                                       'valid' : valid_metric}, epoch)
 
@@ -134,7 +145,7 @@ class AccumData():
 def train():
     accum_data = AccumData()
     for epoch in range(args.epochs):
-        print("---"*6,  "epoch: ", epoch, "---"*6)
+        print("***"*6,  "epoch: ", epoch, "***"*6)
         accum_data.init()
         if args.train:
             model.train()
@@ -146,7 +157,7 @@ def train():
                     break
                 outs = model(images)
                 pred_masks = cluster.train(outs, masks)
-                total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks)
+                total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="train")
                 metric = IoU_metric(pred_masks, masks)
                 accum_data.update("train_Sloss", smooth_loss)
                 accum_data.update("train_Closs", center_loss)
@@ -154,23 +165,24 @@ def train():
                 accum_data.update("train_Tloss", total_loss)
                 accum_data.update("train_metric", metric)
                 accum_data.update("iter_metric", metric)
-                accum_data.update("iter", i)
+                accum_data.update("train_iter", i)
                 accum_data.visual(args.vis, Visual, pred_masks, outs, i, "train")
-                accum_data.printer(i)
+                accum_data.printer_train(i)
                 total_loss.backward()
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
             model.eval()
-            for i, data in enumerate(dataloader["valid"]):
+            for i, data in enumerate(data_loader["valid"]):
                 i += 1
                 images, masks = data
                 images, masks = images.cuda(), masks.cuda()
                 if images.size(0) != args.batch:
                     break
-                outs = model(images)
+                with torch.no_grad():
+                    outs = model(images)
                 pred_masks = cluster.train(outs, masks)
-                total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks)
+                total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="valid")
                 metric = IoU_metric(pred_masks, masks)
                 accum_data.update("valid_Sloss", smooth_loss)
                 accum_data.update("valid_Closs", center_loss)
@@ -178,90 +190,13 @@ def train():
                 accum_data.update("valid_Tloss", total_loss)
                 accum_data.update("valid_metric", metric)
                 accum_data.update("iter_metric", metric)
-                accum_data.update("iter", i)
-                accum_data.visual(args.vis, Visual, pred_masks, outs, i, "train")
-                accum_data.printer(i)
+                accum_data.update("valid_iter", i)
+                accum_data.visual(args.vis, Visual, pred_masks, outs, i, "valid")
+                accum_data.printer_valid(i)
             accum_data.tensorboard(writer, args.tb, epoch)
             accum_data.save_weights(epoch, args.w)
-            
-# def train():
-#     for epoch in range(args.epochs):
-#         train_Sloss, train_Closs, train_Eloss, train_Tloss = 0, 0, 0, 0
-#         valid_Sloss, valid_Closs, valid_Eloss, valid_Tloss = 0, 0, 0, 0
-#         train_metric = 0
-#         valid_metric = 0
-#         test_metric = 0
-#         if args.train:
-#             for i, data in enumerate(data_loader["train"]):
-#                 model.train()
-#                 images, masks4 = data
-#                 images, masks4 = images.cuda(), masks4.cuda()
-#                 outs = model(images)
-#                 Heat_map, _, _ = outs
-#                 pred_masks = cluster.run(outs, masks4)
-#                 smooth_loss = SmoothLoss(outs, masks4)
-#                 center_loss = CenterLoss(outs, masks4)
-#                 embedding_loss = EmbeddingLoss(pred_masks, masks4)
-#                 loss = smooth_loss + center_loss + embedding_loss
-#                 train_Sloss += smooth_loss.item()
-#                 train_Closs += center_loss.item()
-#                 train_Eloss += embedding_loss.item()
-#                 train_Tloss += loss.item()
-#                 train_metric += IoU_metric(masks4, (pred_masks>0.5).float())
-#                 loss.backward()
-#                 optimizer.step()
-#                 scheduler.step()
-#                 optimizer.zero_grad()
-#                 if args.vis == True:
-#                     Visual(pred_masks, Heat_map.reshape(pred_masks.size()), i, 'train')
-#             train_Sloss = train_Sloss/len(data_loader["train"])
-#             train_Closs = train_Closs/len(data_loader["train"])
-#             train_Eloss = train_Eloss/len(data_loader["train"])
-#             train_Tloss = train_Tloss/len(data_loader["train"])
-#             train_metric =  train_metric/len(data_loader["train"])
-#             print("epoch: ", epoch, "TotalLoss: %.4f" % train_Tloss, "IoU_metric: %.4f" % train_metric)
-#             print("SLoss: %.4f" % train_Sloss, "CLoss: %.4f" % train_Closs, "ELoss: %.4f" % train_Eloss)
-#             if epoch % 10 == 0 and epoch != 0:
-#                 torch.save(model.state_dict(), 'ignore/weights/%s.pth' % args.w)
-#                 print("Save weights: %s.pth" % args.w)
-#             if args.tb != "None":
-#                 writer.add_scalars('%s_Total_loss' % args.tb, {'train' : train_Tloss}, epoch)
-#                 # writer.add_scalars('%s_Smooth_loss' % args.tb, {'train' : train_Sloss}, epoch)
-#                 # writer.add_scalars('%s_Center_loss' % args.tb, {'train' : train_Closs}, epoch)
-#                 # writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'train' : train_Eloss}, epoch)
-#                 writer.add_scalars('%s_IoU_metric' % args.tb, {'train' : train_metric}, epoch)
+            accum_data.printer_epoch()
 
-#             for i, data in enumerate(data_loader["valid"]):
-#                 model.eval()
-#                 images, masks4 = data
-#                 images, masks4 = images.cuda(), masks4.cuda()
-#                 outs = model(images)
-#                 Heat_map, _, _ = outs
-#                 pred_masks = cluster.run(outs, masks4)
-#                 smooth_loss = SmoothLoss(outs, masks4)
-#                 center_loss = CenterLoss(outs, masks4)
-#                 embedding_loss = EmbeddingLoss(pred_masks, masks4)
-#                 loss = smooth_loss + center_loss + embedding_loss
-#                 valid_Sloss += smooth_loss.item()
-#                 valid_Closs += center_loss.item()
-#                 valid_Eloss += embedding_loss.item()
-#                 valid_Tloss += loss.item()
-#                 valid_metric += IoU_metric(masks4, (pred_masks>0.5).float())
-#                 if args.vis == True:
-#                     Visual(pred_masks, Heat_map.reshape(pred_masks.size()), i, 'valid')
-#             valid_Sloss = valid_Sloss/len(data_loader["valid"])
-#             valid_Closs = valid_Closs/len(data_loader["valid"])
-#             valid_Eloss = valid_Eloss/len(data_loader["valid"])
-#             valid_Tloss = valid_Tloss/len(data_loader["valid"])
-#             valid_metric = valid_metric/len(data_loader["train"])
-#             print("epoch: ", epoch, "TotalLoss: %.4f" % valid_Tloss, "IoU_metric: %.4f" % valid_metric)
-#             print("SLoss: %.4f" % valid_Sloss, "CLoss: %.4f" % valid_Closs, "ELoss: %.4f" % valid_Eloss)
-#             if args.tb != "None":
-#                 writer.add_scalars('%s_Total_loss' % args.tb, {'valid' : valid_Tloss}, epoch)
-#                 # writer.add_scalars('%s_Smooth_loss' % args.tb, {'valid' : valid_Sloss}, epoch)
-#                 # writer.add_scalars('%s_Center_loss' % args.tb, {'valid' : valid_Closs}, epoch)
-#                 # writer.add_scalars('%s_Embeddidg_loss' % args.tb, {'valid' : valid_Eloss}, epoch)
-#                 writer.add_scalars('%s_IoU_metric' % args.tb, {'valid' : valid_metric}, epoch)
             
 #         for i, data in enumerate(data_loader["test"]): 
 #             model.eval()

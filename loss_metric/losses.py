@@ -82,12 +82,15 @@ def EmbeddingLoss(pred_masks, masks, weight=1.):
         loss += _IOU_loss_(pred_masks[batch], masks_j.detach())   
     return weight * loss / masks.size(0)
 
-def Losses(pred_masks, outs, masks):
+def Losses(pred_masks, outs, masks, mode):
     smooth_loss = SmoothLoss(outs, masks)
     center_loss = CenterLoss(outs, masks)
     embedding_loss = EmbeddingLoss(pred_masks, masks)
     total_loss = smooth_loss + center_loss + embedding_loss
-    return total_loss, smooth_loss, center_loss, embedding_loss
+    if mode is "train":
+        return total_loss, smooth_loss, center_loss, embedding_loss
+    else:
+        return total_loss.item(), smooth_loss.item(), center_loss.item(), embedding_loss.item()
 
     # loss = _l2_loss_(pred, label)
     # loss = F.mse_loss(pred, label)

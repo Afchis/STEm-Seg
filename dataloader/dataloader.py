@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
+
 class DAVIS_train(Dataset):
     def __init__(self, time, size):
         super().__init__()

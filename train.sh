@@ -1,13 +1,13 @@
 python train.py \
-	--lr 0.05 \
-	--lr_step 250 \
+	--lr 0.008 \
+	--lr_step 4000 \
 	--lr_gamma 0.9 \
-	--epochs 1000 \
+	--epochs 10000 \
 	--train True \
-#	--vis True \
-#	--tb w_00 \
-#	--w w_00 \
-#	--batch 2 \
-#	--workers 8
+	--w w_02 \
+	--tb w_02 \
+	--vis True \
+	--batch 3 \
+	--workers 8
 
 

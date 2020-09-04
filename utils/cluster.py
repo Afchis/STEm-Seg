@@ -33,7 +33,7 @@ class Cluster():
                 pred.append(self._eq2_(Emb[batch], Sigma, Myu))
             pred = torch.stack(pred, dim=0)
             pred_batch.append(pred)
-        pred_batch = torch.stack(pred_batch, dim=0)
+        # pred_batch = torch.stack(pred_batch, dim=0)
         return pred_batch
 
     def test(self, outs, iter_in_epoch, iters=7, treshhold=0.5):
