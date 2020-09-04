@@ -22,7 +22,7 @@ class SqueezeBlock(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.backbone = models.resnet101(pretrained=True)
+        self.backbone = models.resnet50(pretrained=True)
         self.resnet_layers = list(self.backbone.children())
         self.layer0 = nn.Sequential(*self.resnet_layers[0:5])
         self.layer1 = nn.Sequential(*self.resnet_layers[5])
