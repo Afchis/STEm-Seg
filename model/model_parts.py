@@ -22,21 +22,21 @@ class SqueezeBlock(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.backbone = models.resnet50(pretrained=True)
+        self.backbone = models.resnet101(pretrained=True)
         self.resnet_layers = list(self.backbone.children())
         self.layer0 = nn.Sequential(*self.resnet_layers[0:5])
         self.layer1 = nn.Sequential(*self.resnet_layers[5])
         self.layer2 = nn.Sequential(*self.resnet_layers[6])
         self.layer3 = nn.Sequential(*self.resnet_layers[7])
 
-        self.top_layer = nn.Conv2d(2048, 64, kernel_size=1, stride=1, padding=0)
-        self.lat_layer2 = nn.Conv2d(1024, 64, kernel_size=1, stride=1, padding=0)
-        self.lat_layer1 = nn.Conv2d(512, 64, kernel_size=1, stride=1, padding=0)
-        self.lat_layer0 = nn.Conv2d(256, 64, kernel_size=1, stride=1, padding=0)
+        self.top_layer = nn.Conv2d(2048, 256, kernel_size=1, stride=1, padding=0)
+        self.lat_layer2 = nn.Conv2d(1024, 256, kernel_size=1, stride=1, padding=0)
+        self.lat_layer1 = nn.Conv2d(512, 256, kernel_size=1, stride=1, padding=0)
+        self.lat_layer0 = nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=0)
 
-        self.smooth4 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
-        self.smooth8 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
-        self.smooth16 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
+        self.smooth4 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        self.smooth8 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        self.smooth16 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
 
     def _upsample_add(self, x, y):
         _,_,H,W = y.size()
@@ -69,19 +69,19 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, out_channel):
         super().__init__()
-        self.squeeze32_0 = SqueezeBlock(in_channel=64, out_channel=64,group= 4)
+        self.squeeze32_0 = SqueezeBlock(in_channel=256, out_channel=64, group=4)
         self.squeeze32_1 = SqueezeBlock(in_channel=64, out_channel=64, group=2)
         self.squeeze32_2 = SqueezeBlock(in_channel=64, out_channel=64, group=1)
 
-        self.squeeze16_0 = SqueezeBlock(in_channel=64, out_channel=64, group=4)
+        self.squeeze16_0 = SqueezeBlock(in_channel=256, out_channel=64, group=4)
         self.squeeze16_1 = SqueezeBlock(in_channel=64, out_channel=64, group=2)
         self.conv16_2 = nn.Conv3d(64+64, 64, kernel_size=(1, 1, 1))
 
-        self.squeeze8_0 = SqueezeBlock(in_channel=64, out_channel=64, group=4)
+        self.squeeze8_0 = SqueezeBlock(in_channel=256, out_channel=64, group=4)
         self.conv8_1 = nn.Conv3d(64+64, 64, kernel_size=(1, 1, 1))
 
         self.conv4_0 = nn.Sequential(
-            nn.Conv3d(64, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
+            nn.Conv3d(256, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1)),
             nn.GroupNorm(8, 64),
             nn.ReLU()
             )

@@ -12,11 +12,11 @@ class Cluster():
         return ((-0.5) * ((Emb - Myu)**2 * (1/Sigma)).sum(dim=0)).exp()
 
     def _Sigma_Nyu_(self, Heat_map, Var, Emb):
-        if Heat_map.max() < 0.7:
+        if Heat_map.max() < 0.6:
             return False, False
         pos = Heat_map.view(Heat_map.size(0), -1).argmax(dim=1)
-        Sigma = Var.view(Var.size(0), Var.size(1), -1)[(torch.arange(Heat_map.size(0))), :, pos]
-        Myu = Emb.view(Emb.size(0), Emb.size(1), -1)[(torch.arange(Heat_map.size(0))), :, pos]
+        Sigma = Var.view(Var.size(0), -1)[:, pos]
+        Myu = Emb.view(Emb.size(0), -1)[:, pos]
         return Sigma, Myu
 
     def train(self, outs, masks):
@@ -33,23 +33,24 @@ class Cluster():
                 pred.append(self._eq2_(Emb[batch], Sigma, Myu))
             pred = torch.stack(pred, dim=0)
             pred_batch.append(pred)
-        # pred_batch = torch.stack(pred_batch, dim=0)
         return pred_batch
 
-    def test(self, outs, iter_in_epoch, iters=7, treshhold=0.5):
-        Heat_map, Var, Emb = outs
-        unused_masks = torch.ones_like(Heat_map).cuda()
-        output_masks = torch.zeros_like(Heat_map).cuda()
-        visual_list = list()
-        for i in range(iters):
-            Sigma, Myu = self._Sigma_Nyu_(Heat_map*unused_masks, Var*unused_masks, Emb*unused_masks)
-            if Sigma is False:
-                break
-            pred = self._eq2_(Emb*unused_masks, Sigma, Myu).view(Heat_map.size())
-            visual_list.append(pred.ge(treshhold).float())
-            output_masks += pred.ge(treshhold).float()
-            unused_masks = unused_masks*pred.lt(treshhold).float()
-        if self.vis == True:
-            Visual_clusters(visual_list, iter_in_epoch)
-        raise NotImplementedError  
-        # return output_masks[:, 0]
+    def inference(self, outs, iters=7, treshhold=0.7):
+        with torch.no_grad():
+            Heat_map, Var, Emb = outs
+            pred_list = list()
+            for batch in range(Heat_map.size(0)):
+                visual_list = list()
+                unused_masks = torch.ones_like(Heat_map[0]).cuda()
+                output_masks = torch.zeros_like(Heat_map[0]).cuda()
+                for i in range(iters):
+                    Sigma, Myu = self._Sigma_Nyu_(Heat_map[batch]*unused_masks, Var[batch]*unused_masks, Emb[batch]*unused_masks)
+                    if Sigma is False:
+                        break
+                    pred = self._eq2_(Emb[batch]*unused_masks, Sigma, Myu).view(Heat_map[batch].size())
+                    visual_list.append(pred.ge(treshhold).float())
+                    output_masks += pred.ge(treshhold).float()
+                    unused_masks = unused_masks*pred.lt(treshhold).float()
+                pred_list.append(visual_list)
+        return pred_list
+

@@ -2,6 +2,7 @@ import argparse
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
 # import class()
@@ -11,7 +12,7 @@ from dataloader.dataloader import Loader
 # import def()
 from loss_metric.losses import Losses
 from loss_metric.metrics import IoU_metric
-from utils.visual_helper import Visual
+from utils.visual_helper import Visual, Visual_inference
 
 
 parser = argparse.ArgumentParser()
@@ -39,7 +40,7 @@ writer = SummaryWriter('ignore/runs')
 # init model
 model = STEmSeg(batch_size=args.batch, mode=args.mode, size=args.size).cuda()
 try:
-    model.load_state_dict(torch.load('ignore/weights/%s.pth' % args.w), )#strict=False
+    model.load_state_dict(torch.load('ignore/weights/%s.pth' % args.w), strict=False)
 except FileNotFoundError:
     print("!!!Create new weights!!!: ", "%s.pth" % args.w)
     pass
@@ -49,6 +50,7 @@ print("Params", params)
 
 # init cluster
 cluster = Cluster(vis=args.vis)
+
 # init dataloader
 data_loader = Loader(size=args.size, batch_size=args.batch, time=args.time, num_workers=args.workers, shuffle=True)
 
@@ -94,7 +96,7 @@ class AccumData():
     def printer_train(self, i):
         if i % 5 == 0:
             print("Train iter:", i, "Loss: %0.4f" % (self.disp["train_Tloss"]/self.disp["train_iter"]),
-                  "MetricIoU: %0.4f" % self.iter_metric)
+                  "MetricIoU: %0.4f" % (self.disp["train_metric"]/self.disp["train_iter"]))
             # print(" "*10, "Smooth: %0.4f" % (self.disp["train_Sloss"]/self.disp["train_iter"]),
             #       "Center: %0.4f" % (self.disp["train_Closs"]/self.disp["train_iter"]),
             #       "Ebmedding: %0.4f" % (self.disp["train_Eloss"]/self.disp["train_iter"]))
@@ -102,7 +104,7 @@ class AccumData():
     def printer_valid(self, i):
         if i % 5 == 0:
             print("Valid iter:", i, "Loss: %0.4f" % (self.disp["valid_Tloss"]/self.disp["valid_iter"]),
-                  "MetricIoU: %0.4f" % self.iter_metric)
+                  "MetricIoU: %0.4f" % (self.disp["valid_metric"]/self.disp["valid_iter"]))
             # print(" "*10, "Smooth: %0.4f" % (self.disp["valid_Sloss"]/self.disp["valid_iter"]),
             #       "Center: %0.4f" % (self.disp["valid_Closs"]/self.disp["valid_iter"]),
             #       "Ebmedding: %0.4f" % (self.disp["valid_Eloss"]/self.disp["valid_iter"]))
@@ -136,10 +138,14 @@ class AccumData():
             writer.add_scalars('%s_IoU_metric' % tb, {'train' : train_metric,
                                                       'valid' : valid_metric}, epoch)
 
-    def visual(self, vis, Visual, pred_masks, outs, i, mode):
+    def visual_train(self, vis, Visual, pred_masks, outs, i, mode):
         if vis is True:
             Heat_map, _, _ = outs
             Visual(pred_masks, Heat_map, i, mode)
+
+    def visual_inference(self, vis, Visual_inference, pred_clusters, i, mode):
+        if vis is True:
+            Visual_inference(pred_clusters, i, mode)
 
 
 def train():
@@ -156,9 +162,16 @@ def train():
                 if images.size(0) != args.batch:
                     break
                 outs = model(images)
-                pred_masks = cluster.train(outs, masks)
+                try:
+                    pred_masks = cluster.train(outs, masks)
+                except RuntimeError:
+                    break
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="train")
                 metric = IoU_metric(pred_masks, masks)
+                try:
+                    pred_clusters = cluster.inference(outs)
+                except RuntimeError:
+                    break  
                 accum_data.update("train_Sloss", smooth_loss)
                 accum_data.update("train_Closs", center_loss)
                 accum_data.update("train_Eloss", embedding_loss)
@@ -166,7 +179,8 @@ def train():
                 accum_data.update("train_metric", metric)
                 accum_data.update("iter_metric", metric)
                 accum_data.update("train_iter", i)
-                accum_data.visual(args.vis, Visual, pred_masks, outs, i, "train")
+                accum_data.visual_train(args.vis, Visual, pred_masks, outs, i, "train")
+                accum_data.visual_inference(args.vis, Visual_inference, pred_clusters, i, "train")
                 accum_data.printer_train(i)
                 total_loss.backward()
                 optimizer.step()
@@ -181,9 +195,16 @@ def train():
                     break
                 with torch.no_grad():
                     outs = model(images)
-                pred_masks = cluster.train(outs, masks)
+                try:
+                    pred_masks = cluster.train(outs, masks)
+                except RuntimeError:
+                    break
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="valid")
                 metric = IoU_metric(pred_masks, masks)
+                try:
+                    pred_clusters = cluster.inference(outs)
+                except RuntimeError:
+                    break
                 accum_data.update("valid_Sloss", smooth_loss)
                 accum_data.update("valid_Closs", center_loss)
                 accum_data.update("valid_Eloss", embedding_loss)
@@ -191,24 +212,13 @@ def train():
                 accum_data.update("valid_metric", metric)
                 accum_data.update("iter_metric", metric)
                 accum_data.update("valid_iter", i)
-                accum_data.visual(args.vis, Visual, pred_masks, outs, i, "valid")
+                accum_data.visual_train(args.vis, Visual, pred_masks, outs, i, "valid")
+                accum_data.visual_inference(args.vis, Visual_inference, pred_clusters, i, "valid")
                 accum_data.printer_valid(i)
             accum_data.tensorboard(writer, args.tb, epoch)
             accum_data.save_weights(epoch, args.w)
             accum_data.printer_epoch()
 
-            
-#         for i, data in enumerate(data_loader["test"]): 
-#             model.eval()
-#             images, masks4 = data
-#             images, masks4 = images.cuda(), masks4.cuda()
-#             outs = model(images)
-#             pred_masks = cluster.test_run(outs, iter_in_epoch=i)
-#             test_metric += IoU_metric(masks4, pred_masks)
-#         test_metric = test_metric/len(data_loader["train"])
-#         print("test metric: %.4f" % test_metric)
-#         if args.tb != "None":
-#             writer.add_scalars('%s_IoU_metric' % args.tb, {'test' : test_metric}, epoch)
 
 if __name__ == "__main__":
     train()

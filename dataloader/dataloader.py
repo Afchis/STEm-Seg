@@ -53,7 +53,7 @@ class DAVIS_train(Dataset):
         return len(self.video_names)
 
     def __getitem__(self, idx):
-        file_names = os.listdir(self.data_path + "JPEGImages/480p/" + self.video_names[idx])
+        file_names = sorted(os.listdir(self.data_path + "JPEGImages/480p/" + self.video_names[idx]))
         images, masks = self._randseq_(file_names, idx)
         masks = self._rgb2label_(masks) # [t, h, w, c]
         return images, masks
@@ -104,7 +104,7 @@ class DAVIS_valid(Dataset):
         return len(self.video_names)
 
     def __getitem__(self, idx):
-        file_names = os.listdir(self.data_path + "JPEGImages/480p/" + self.video_names[idx])
+        file_names = sorted(os.listdir(self.data_path + "JPEGImages/480p/" + self.video_names[idx]))
         images, masks = self._randseq_(file_names, idx)
         masks = self._rgb2label_(masks) # [t, h, w, c]
         return images, masks
