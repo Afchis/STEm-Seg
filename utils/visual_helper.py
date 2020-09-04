@@ -57,14 +57,17 @@ def Visual(pred_masks, Heat_map, i, mode):
     Heat_map = to_pil(Heat_map.cpu()).convert("RGBA")
     Heat_map.save("ignore/visual/" + mode + "_heatmap/" + mode  + "_heatmap%i.png" % i)
 
-def Visual_inference(pred_clusters, i, mode, batch=0):
+def Visual_inference(pred_clusters, images, i, mode, batch=0):
     out = torch.zeros([3, 8, 128, 128]).cuda()
     pred_clusters = pred_clusters[batch]
+    images = images[batch]
     for ch in range(len(pred_clusters)):
         color = colors[color_names[ch]]
         color = pred_clusters[ch]*color
         out += color
     for time in range(out.size(1)):
+        img_time = resize(to_pil(images[time].cpu())).convert("RGBA")
         out_time = to_pil(out[:, time].cpu()).convert("RGBA")
-        out_time.save("ignore/visual/" + "inferense_%s/" % mode + "inferense_%s" % mode + "_%i_" % i + "%i.png" % time)
+        rgb_out = Image.blend(img_time, out_time, 0.5)
+        rgb_out.save("ignore/visual/" + "inferense_%s/" % mode + "inferense_%s" % mode + "_%i_" % i + "%i.png" % time)
 

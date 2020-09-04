@@ -26,7 +26,7 @@ class STEmSeg(nn.Module):
             "xytf" : [self.xm, self.ym, self.tm, self.fm],
             "xyff" : [self.xm, self.ym, self.fm, self.fm]
         }
-        self.xytm = torch.cat(self.mode[self.m], dim=1).cuda()
+        self.xytm = torch.cat(self.mode[self.m], dim=1)
         self.encoder = Encoder()
         self.decoder_heatmap = Decoder(out_channel=1)
         self.decoder_embedding = Decoder(out_channel=self.num[self.m])
@@ -45,7 +45,7 @@ class STEmSeg(nn.Module):
         Emb = Var_Emb[:, num:]
         Heat_map = self.sigmoid(Heat_map)
         Var = Var.exp()
-        Emb = Emb + self.xytm.detach()
+        Emb = Emb + self.xytm.to(device=images.get_device())
         return Heat_map, Var, Emb
 
 
