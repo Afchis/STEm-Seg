@@ -60,6 +60,11 @@ data_loader = Loader(size=args.size, batch_size=args.batch, time=args.time, num_
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)#, weight_decay=0.0005)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
 
+def save_model(epoch, i):
+    if epoch % i == 0 and epoch != 0:
+        torch.save(model.state_dict(), 'ignore/weights/%s.pth' % args.w)
+        print("Save weights: %s.pth" % args.w)
+
 
 def train():
     accum_data = AccumData()
@@ -69,6 +74,7 @@ def train():
         if args.train:
             model.train()
             for i, data in enumerate(data_loader["train"]):
+                optimizer.zero_grad()
                 i += 1
                 images, masks = data
                 images, masks = images.cuda(), masks.cuda()
@@ -78,12 +84,16 @@ def train():
                 try:
                     pred_masks = cluster.train(outs, masks)
                 except RuntimeError:
+                    optimizer.zero_grad()
+                    print("CONTINUE"*9)
                     continue
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="train")
                 metric = IoU_metric(pred_masks, masks)
                 try:
                     pred_clusters = cluster.inference(outs)
                 except RuntimeError:
+                    optimizer.zero_grad()
+                    print("CONTINUE"*9)
                     continue  
                 accum_data.update("train_Sloss", smooth_loss)
                 accum_data.update("train_Closs", center_loss)
@@ -98,7 +108,6 @@ def train():
                 total_loss.backward()
                 optimizer.step()
                 scheduler.step()
-                optimizer.zero_grad()
             model.eval()
             for i, data in enumerate(data_loader["valid"]):
                 i += 1
@@ -111,12 +120,16 @@ def train():
                 try:
                     pred_masks = cluster.train(outs, masks)
                 except RuntimeError:
+                    torch.cuda.empty_cache()
+                    print("CONTINUE"*9)
                     continue
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="valid")
                 metric = IoU_metric(pred_masks, masks)
                 try:
                     pred_clusters = cluster.inference(outs)
                 except RuntimeError:
+                    torch.cuda.empty_cache()
+                    print("CONTINUE"*9)
                     continue
                 accum_data.update("valid_Sloss", smooth_loss)
                 accum_data.update("valid_Closs", center_loss)
@@ -130,9 +143,8 @@ def train():
                 accum_data.printer_valid(i)
             accum_data.tensorboard(writer, args.tb, epoch)
             accum_data.printer_epoch()
-            if epoch % 10 == 0 and epoch != 0:
-                torch.save(model.state_dict(), 'ignore/weights/%s.pth' % args.w)
-                print("Save weights: %s.pth" % args.w)
+            save_model(epoch, 5)
+            
 
 
 if __name__ == "__main__":

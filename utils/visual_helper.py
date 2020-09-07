@@ -65,9 +65,12 @@ def Visual_inference(pred_clusters, images, i, mode, batch=0):
         color = colors[color_names[ch]]
         color = pred_clusters[ch]*color
         out += color
+    rgb_out = list()
     for time in range(out.size(1)):
         img_time = resize(to_pil(images[time].cpu())).convert("RGBA")
         out_time = to_pil(out[:, time].cpu()).convert("RGBA")
-        rgb_out = Image.blend(img_time, out_time, 0.5)
-        rgb_out.save("ignore/visual/" + "inferense_%s/" % mode + "inferense_%s" % mode + "_%i_" % i + "%i.png" % time)
+        rgb_out.append(Image.blend(img_time, out_time, 0.5))
+    rgb_out[0].save("ignore/visual/" + "inferense_%s/" % mode + "inferense_%s" % mode + "_%i.gif" % i, 
+        save_all=True, append_images=rgb_out[1:], optimize=True, duration=400, loop=0)
+    # rgb_out.save("ignore/visual/" + "inferense_%s/" % mode + "inferense_%s" % mode + "_%i_" % i + "%i.png" % time)
 

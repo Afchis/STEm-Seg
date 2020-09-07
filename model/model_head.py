@@ -10,23 +10,24 @@ class STEmSeg(nn.Module):
         self.size = int(size/4)
         self.b = batch_size
         self.m = mode
-        self.xm = torch.linspace(0, 1, self.size).reshape(1, 1, 1, 1, -1).expand(self.b, 1, 8, self.size, self.size)
-        self.ym = torch.linspace(0, 1, self.size).reshape(1, 1, 1, -1, 1).expand(self.b, 1, 8, self.size, self.size)
-        self.tm = torch.linspace(0, 1, 8).reshape(1, 1, -1, 1, 1).expand(self.b, 1, 8, self.size, self.size)
-        self.fm = torch.zeros_like(self.xm)
-        self.num = {
-            "xyt" : 6,
-            "xyf" : 6,
-            "xytf" : 8,
-            "xyff" : 8
-        }
-        self.mode = {
-            "xyt" : [self.xm, self.ym, self.tm],
-            "xyf" : [self.xm, self.ym, self.fm],
-            "xytf" : [self.xm, self.ym, self.tm, self.fm],
-            "xyff" : [self.xm, self.ym, self.fm, self.fm]
-        }
-        self.xytm = torch.cat(self.mode[self.m], dim=1)
+        with torch.no_grad():
+            self.xm = torch.linspace(0, 1, self.size).reshape(1, 1, 1, 1, -1).expand(self.b, 1, 8, self.size, self.size)
+            self.ym = torch.linspace(0, 1, self.size).reshape(1, 1, 1, -1, 1).expand(self.b, 1, 8, self.size, self.size)
+            self.tm = torch.linspace(0, 1, 8).reshape(1, 1, -1, 1, 1).expand(self.b, 1, 8, self.size, self.size)
+            self.fm = torch.zeros_like(self.xm)
+            self.num = {
+                "xyt" : 6,
+                "xyf" : 6,
+                "xytf" : 8,
+                "xyff" : 8
+            }
+            self.mode = {
+                "xyt" : [self.xm, self.ym, self.tm],
+                "xyf" : [self.xm, self.ym, self.fm],
+                "xytf" : [self.xm, self.ym, self.tm, self.fm],
+                "xyff" : [self.xm, self.ym, self.fm, self.fm]
+            }
+            self.xytm = torch.cat(self.mode[self.m], dim=1)
         self.encoder = Encoder()
         self.decoder_heatmap = Decoder(out_channel=1)
         self.decoder_embedding = Decoder(out_channel=self.num[self.m])
@@ -45,7 +46,7 @@ class STEmSeg(nn.Module):
         Emb = Var_Emb[:, num:]
         Heat_map = self.sigmoid(Heat_map)
         Var = Var.exp()
-        Emb = Emb + self.xytm #.to(device=images.get_device())
+        Emb = Emb + self.xytm.cuda().detach()
         return Heat_map, Var, Emb
 
 

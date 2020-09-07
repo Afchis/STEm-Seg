@@ -118,11 +118,13 @@ def Loader(size, batch_size, time, num_workers, shuffle=True):
     train_loader = DataLoader(dataset=train_dataset,
                               batch_size=batch_size,
                               num_workers=num_workers,
-                              shuffle=shuffle)
+                              shuffle=shuffle,
+                              pin_memory=True)
     valid_loader = DataLoader(dataset=valid_dataset,
                               batch_size=batch_size,
                               num_workers=num_workers,
-                              shuffle=shuffle)
+                              shuffle=shuffle,
+                              pin_memory=True)
     test_loader = DataLoader(dataset=valid_dataset,
                               batch_size=1,
                               num_workers=1,
