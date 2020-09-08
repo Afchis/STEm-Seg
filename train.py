@@ -40,7 +40,7 @@ writer = SummaryWriter('ignore/runs')
 
 # init model
 model = STEmSeg(batch_size=args.batch, mode=args.mode, size=args.size).cuda()
-# model = nn.DataParallel(model)
+model = nn.DataParallel(model)
 try:
     model.load_state_dict(torch.load('ignore/weights/%s.pth' % args.w), strict=False)
 except FileNotFoundError:
@@ -84,17 +84,15 @@ def train():
                 try:
                     pred_masks = cluster.train(outs, masks)
                 except RuntimeError:
-                    optimizer.zero_grad()
                     print("CONTINUE"*9)
-                    continue
+                    break
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="train")
                 metric = IoU_metric(pred_masks, masks)
                 try:
                     pred_clusters = cluster.inference(outs)
                 except RuntimeError:
-                    optimizer.zero_grad()
-                    print("CONTINUE"*9)
-                    continue  
+                    print("continue"*9)
+                    break  
                 accum_data.update("train_Sloss", smooth_loss)
                 accum_data.update("train_Closs", center_loss)
                 accum_data.update("train_Eloss", embedding_loss)
@@ -120,17 +118,15 @@ def train():
                 try:
                     pred_masks = cluster.train(outs, masks)
                 except RuntimeError:
-                    torch.cuda.empty_cache()
                     print("CONTINUE"*9)
-                    continue
+                    break
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="valid")
                 metric = IoU_metric(pred_masks, masks)
                 try:
                     pred_clusters = cluster.inference(outs)
                 except RuntimeError:
-                    torch.cuda.empty_cache()
-                    print("CONTINUE"*9)
-                    continue
+                    print("continue"*9)
+                    break
                 accum_data.update("valid_Sloss", smooth_loss)
                 accum_data.update("valid_Closs", center_loss)
                 accum_data.update("valid_Eloss", embedding_loss)

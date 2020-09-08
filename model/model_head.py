@@ -8,7 +8,7 @@ class STEmSeg(nn.Module):
     def __init__(self, batch_size, mode, size):
         super().__init__()
         self.size = int(size/4)
-        self.b = batch_size
+        self.b = int(batch_size/2)
         self.m = mode
         with torch.no_grad():
             self.xm = torch.linspace(0, 1, self.size).reshape(1, 1, 1, 1, -1).expand(self.b, 1, 8, self.size, self.size)
