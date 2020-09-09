@@ -12,7 +12,7 @@ class Cluster():
         return ((-0.5) * ((Emb - Myu)**2 * (1/Sigma)).sum(dim=0)).exp()
 
     def _Sigma_Nyu_(self, Heat_map, Var, Emb):
-        if Heat_map.max() < 0.6:
+        if Heat_map.max() < 0.4:
             return False, False
         pos = Heat_map.view(Heat_map.size(0), -1).argmax(dim=1)
         Sigma = Var.view(Var.size(0), -1)[:, pos]
@@ -35,7 +35,7 @@ class Cluster():
             pred_batch.append(pred)
         return pred_batch
 
-    def inference(self, outs, iters=7, treshhold=0.7):
+    def inference(self, outs, iters=7, treshhold=0.5):
         with torch.no_grad():
             Heat_map, Var, Emb = outs
             pred_list = list()

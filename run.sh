@@ -1,15 +1,15 @@
 python train.py \
-	--lr 0.05 \
-	--lr_step 1000 \
-	--lr_gamma 0.75 \
+	--lr 0.005 \
+	--lr_step 10000 \
+	--lr_gamma 0.5 \
 	--epochs 100000 \
 	--train True \
-	--w w_06 \
-	--mode xyff \
+	--w lr_0.0001 \
+	--mode xytf \
 	--batch 4 \
 	--workers 8 \
 	--vis True \
-	--tb xyff_w_06 \
+#	--tb xytf_w_07 \
 
 
 

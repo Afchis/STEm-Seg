@@ -10,6 +10,7 @@ from model.model_head import STEmSeg
 from utils.cluster import Cluster
 from dataloader.dataloader import Loader
 from utils.accum_data import AccumData
+
 # import def()
 from loss_metric.losses import Losses
 from loss_metric.metrics import IoU_metric
@@ -74,23 +75,24 @@ def train():
         if args.train:
             model.train()
             for i, data in enumerate(data_loader["train"]):
-                optimizer.zero_grad()
                 i += 1
                 images, masks = data
                 images, masks = images.cuda(), masks.cuda()
-                if images.size(0) != args.batch:
-                    break
                 outs = model(images)
                 try:
                     pred_masks = cluster.train(outs, masks)
+                    qwe = 0
                 except RuntimeError:
+                    qwe = 5
                     print("CONTINUE"*9)
                     break
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="train")
                 metric = IoU_metric(pred_masks, masks)
                 try:
                     pred_clusters = cluster.inference(outs)
+                    qwe = 0
                 except RuntimeError:
+                    qwe = 5
                     print("continue"*9)
                     break  
                 accum_data.update("train_Sloss", smooth_loss)
@@ -106,15 +108,15 @@ def train():
                 total_loss.backward()
                 optimizer.step()
                 scheduler.step()
+                optimizer.zero_grad()
             model.eval()
             for i, data in enumerate(data_loader["valid"]):
+                if qwe == 5:
+                    break
                 i += 1
                 images, masks = data
                 images, masks = images.cuda(), masks.cuda()
-                if images.size(0) != args.batch:
-                    break
-                with torch.no_grad():
-                    outs = model(images)
+                outs = model(images)
                 try:
                     pred_masks = cluster.train(outs, masks)
                 except RuntimeError:
@@ -137,9 +139,10 @@ def train():
                 accum_data.visual_train(args.vis, Visual, pred_masks, outs, i, "valid")
                 accum_data.visual_inference(args.vis, Visual_inference, pred_clusters, images, i, "valid")
                 accum_data.printer_valid(i)
-            accum_data.tensorboard(writer, args.tb, epoch)
-            accum_data.printer_epoch()
-            save_model(epoch, 5)
+            if qwe != 5:
+                accum_data.tensorboard(writer, args.tb, epoch)
+                accum_data.printer_epoch()
+                save_model(epoch, 5)
             
 
 

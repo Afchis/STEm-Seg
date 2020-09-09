@@ -1,7 +1,9 @@
 import torch
 import torch.nn.functional as F
 
-from .lovasz_loss import lovasz_hinge
+from .lovasz_loss import LovaszHingeLoss
+
+lovasz_hinge_loss = LovaszHingeLoss()
 
 
 # SmoothLoss:
@@ -79,7 +81,7 @@ def EmbeddingLoss(pred_masks, masks, weight=1.):
             instance += 1
             masks_j.append(masks[batch].eq(instance).float().permute(3, 0, 1, 2))
         masks_j = torch.cat(masks_j, dim=0)
-        loss += _IOU_loss_(pred_masks[batch], masks_j.detach())   
+        loss += _IOU_loss_(pred_masks[batch], masks_j.detach())
     return weight * loss / masks.size(0)
 
 def Losses(pred_masks, outs, masks, mode):

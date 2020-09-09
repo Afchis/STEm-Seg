@@ -7,6 +7,11 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
+# import class()
+from .augmentations import ImgsAug
+
+# import def()
+from .augmentations import RotateVideo
 
 class DAVIS_train(Dataset):
     def __init__(self, time, size):
@@ -15,28 +20,24 @@ class DAVIS_train(Dataset):
         self.time = time
         with open(self.data_path + "ImageSets/2017/train.txt", 'r') as txt:
             self.video_names = txt.read().split('\n')[:-1]
-        self.trans = transforms.Compose([
-            transforms.Resize((size, size), interpolation=0),
-            transforms.ToTensor()
-            ])
-        self.trans4 = transforms.Compose([
-            transforms.Resize((int(size/4), int(size/4)), interpolation=0),
-            transforms.ToTensor()
-            ])
+        self.Augmentation = ImgsAug(size)        
 
     def _randseq_(self, file_names, idx):
         randint = randrange((len(file_names)-self.time+1))
         images = list()
         masks = list()
+        self.Augmentation.Rand()
         for time in range(self.time):
-            image = self.trans(Image.open(self.data_path + "JPEGImages/480p/" + self.video_names[idx] \
-                                          + "/" + file_names[randint+time]))
-            mask = self.trans4(Image.open(self.data_path + "/Annotations_unsupervised/480p/" + self.video_names[idx] \
-                                          + "/" + file_names[randint+time][:-3] + "png").convert('RGB'))
+            image = Image.open(self.data_path + "JPEGImages/480p/" \
+                               + self.video_names[idx] + "/" + file_names[randint+time])
+            image = self.Augmentation.Image(image)
+            mask = Image.open(self.data_path + "/Annotations_unsupervised/480p/" \
+                              + self.video_names[idx] + "/" + file_names[randint+time][:-3] + "png").convert('RGB')
+            mask = self.Augmentation.Mask(mask)
             images.append(image)
             masks.append(mask)
         images = torch.stack(images, dim=0) # [t, c, h, w]
-        masks = torch.stack(masks, dim=0).permute(0, 2, 3, 1) # [t, h, w, c]
+        masks = torch.stack(masks, dim=0) # [t, c, h, w]
         return images, masks
 
     def _rgb2label_(self, masks):
@@ -55,7 +56,8 @@ class DAVIS_train(Dataset):
     def __getitem__(self, idx):
         file_names = sorted(os.listdir(self.data_path + "JPEGImages/480p/" + self.video_names[idx]))
         images, masks = self._randseq_(file_names, idx)
-        masks = self._rgb2label_(masks) # [t, h, w, c]
+        images, masks = RotateVideo(images, masks)
+        masks = self._rgb2label_(masks.permute(0, 2, 3, 1)) # [t, h, w, c]
         return images, masks
 
 

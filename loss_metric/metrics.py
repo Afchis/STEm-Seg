@@ -19,4 +19,4 @@ def IoU_metric(pred_masks, masks, smooth = 1.):
                 masks_j.append(masks[batch].eq(instance).float().permute(3, 0, 1, 2))
             masks_j = torch.cat(masks_j, dim=0)
             metric += _IoU_metric_((pred_masks[batch]>0.5).float(), masks_j)
-    return (metric / masks.size(0)).item()
+    return (metric / masks.size(0))
