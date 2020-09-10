@@ -53,7 +53,10 @@ def SmoothLoss(outs, masks, weight=10.):
             Var_mean = Var_j.sum(3).sum(2).sum(1) / masks_j.sum()
             loss += _sqrt_sum_(Var_j, Var_mean.view(Var_j.size(0), 1, 1, 1), masks_j) / masks_j.sum()
             l_i += 1
-    return weight * loss / l_i
+    if l_i != 0:
+        return weight * loss / l_i
+    else:
+        return 0
 
 def CenterLoss(outs, masks, weight=1.):
     Heat_map, Var, Emb = outs
@@ -61,27 +64,32 @@ def CenterLoss(outs, masks, weight=1.):
     l_i = 0
     for batch in range(masks.size(0)):
         C = 0
-        for instance in range(masks[batch].max().item()):
-            instance += 1
-            masks_j = masks[batch].eq(instance).float().permute(3, 0, 1, 2)
-            Var_j, Emb_j = Var[batch]*masks_j, Emb[batch]*masks_j
-            masks_j = masks_j.reshape(masks.size(1), masks.size(2), masks.size(3))
-            Sigma = Var_j.sum(3).sum(2).sum(1) / masks_j.sum()
-            Nyu = Emb_j.sum(3).sum(2).sum(1) / masks_j.sum()     
-            C += _eq2_(Emb[batch], Sigma, Nyu)*masks_j
-        loss += F.mse_loss(Heat_map[batch], C.unsqueeze(0).detach())
-        l_i += 1
-    return weight * loss / l_i
+        if masks[batch].max().item() != 0:
+            for instance in range(masks[batch].max().item()):
+                instance += 1
+                masks_j = masks[batch].eq(instance).float().permute(3, 0, 1, 2)
+                Var_j, Emb_j = Var[batch]*masks_j, Emb[batch]*masks_j
+                masks_j = masks_j.reshape(masks.size(1), masks.size(2), masks.size(3))
+                Sigma = Var_j.sum(3).sum(2).sum(1) / masks_j.sum()
+                Nyu = Emb_j.sum(3).sum(2).sum(1) / masks_j.sum()     
+                C += _eq2_(Emb[batch], Sigma, Nyu)*masks_j
+            loss += F.mse_loss(Heat_map[batch], C.unsqueeze(0).detach())
+            l_i += 1
+    if l_i != 0:
+        return weight * loss / l_i
+    else:
+        return 0
 
 def EmbeddingLoss(pred_masks, masks, weight=1.):
     loss = 0
     for batch in range(masks.size(0)):
         masks_j = list()
-        for instance in range(masks[batch].max().item()):
-            instance += 1
-            masks_j.append(masks[batch].eq(instance).float().permute(3, 0, 1, 2))
-        masks_j = torch.cat(masks_j, dim=0)
-        loss += _IOU_loss_(pred_masks[batch], masks_j.detach())
+        if masks[batch].max().item() != 0:
+            for instance in range(masks[batch].max().item()):
+                instance += 1
+                masks_j.append(masks[batch].eq(instance).float().permute(3, 0, 1, 2))
+            masks_j = torch.cat(masks_j, dim=0)
+            loss += _IOU_loss_(pred_masks[batch], masks_j.detach())
     return weight * loss / masks.size(0)
 
 def Losses(pred_masks, outs, masks, mode):
@@ -92,7 +100,7 @@ def Losses(pred_masks, outs, masks, mode):
     if mode is "train":
         return total_loss, smooth_loss, center_loss, embedding_loss
     else:
-        return total_loss.item(), smooth_loss.item(), center_loss.item(), embedding_loss.item()
+        return total_loss.detach(), smooth_loss.detach(), center_loss.detach(), embedding_loss.detach()
 
     # loss = _l2_loss_(pred, label)
     # loss = F.mse_loss(pred, label)

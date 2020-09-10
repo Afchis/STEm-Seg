@@ -41,7 +41,7 @@ writer = SummaryWriter('ignore/runs')
 
 # init model
 model = STEmSeg(batch_size=args.batch, mode=args.mode, size=args.size).cuda()
-model = nn.DataParallel(model)
+# model = nn.DataParallel(model)
 try:
     model.load_state_dict(torch.load('ignore/weights/%s.pth' % args.w), strict=False)
 except FileNotFoundError:
@@ -51,6 +51,11 @@ model_parameters = filter(lambda p: p.requires_grad, model.parameters())
 params = sum([np.prod(p.size()) for p in model_parameters])
 print("Params", params)
 
+def save_model(epoch, i):
+    if epoch % i == 0 and epoch != 0:
+        torch.save(model.state_dict(), 'ignore/weights/%s.pth' % args.w)
+        print("Save weights: %s.pth" % args.w)
+
 # init cluster
 cluster = Cluster(vis=args.vis)
 
@@ -58,13 +63,8 @@ cluster = Cluster(vis=args.vis)
 data_loader = Loader(size=args.size, batch_size=args.batch, time=args.time, num_workers=args.workers, shuffle=True)
 
 # init optimizer and lr_scheduler
-optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)#, weight_decay=0.0005)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)#, weight_decay=0.0005)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
-
-def save_model(epoch, i):
-    if epoch % i == 0 and epoch != 0:
-        torch.save(model.state_dict(), 'ignore/weights/%s.pth' % args.w)
-        print("Save weights: %s.pth" % args.w)
 
 
 def train():
@@ -72,79 +72,69 @@ def train():
     for epoch in range(args.epochs):
         print("***"*6,  "epoch: ", epoch, "***"*6)
         accum_data.init()
-        if args.train:
+        if args.train == True:
             model.train()
             for i, data in enumerate(data_loader["train"]):
                 i += 1
                 images, masks = data
                 images, masks = images.cuda(), masks.cuda()
                 outs = model(images)
-                try:
-                    pred_masks = cluster.train(outs, masks)
-                    qwe = 0
-                except RuntimeError:
-                    qwe = 5
-                    print("CONTINUE"*9)
-                    break
+                pred_masks = cluster.train(outs, masks)
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="train")
-                metric = IoU_metric(pred_masks, masks)
-                try:
-                    pred_clusters = cluster.inference(outs)
-                    qwe = 0
-                except RuntimeError:
-                    qwe = 5
-                    print("continue"*9)
-                    break  
-                accum_data.update("train_Sloss", smooth_loss)
-                accum_data.update("train_Closs", center_loss)
-                accum_data.update("train_Eloss", embedding_loss)
-                accum_data.update("train_Tloss", total_loss)
-                accum_data.update("train_metric", metric)
-                accum_data.update("iter_metric", metric)
-                accum_data.update("train_iter", i)
-                accum_data.visual_train(args.vis, Visual, pred_masks, outs, i, "train")
-                accum_data.visual_inference(args.vis, Visual_inference, pred_clusters, images, i, "train")
-                accum_data.printer_train(i)
+                optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
                 scheduler.step()
-                optimizer.zero_grad()
+                metric = IoU_metric(pred_masks, masks)
+                accum_data.update("train_Sloss", smooth_loss.detach())
+                accum_data.update("train_Closs", center_loss.detach())
+                accum_data.update("train_Eloss", embedding_loss.detach())
+                accum_data.update("train_Tloss", total_loss.detach())
+                accum_data.update("train_metric", metric.detach())
+                accum_data.update("iter_metric", metric.detach())
+                accum_data.update("train_iter", i)
+                pred_clusters = cluster.inference(outs)
+                accum_data.visual_train(args.vis, Visual, pred_masks, outs, i, "train")
+                accum_data.visual_inference(args.vis, Visual_inference, pred_clusters, images, i, "train")
+                accum_data.printer_train(i)
+                del images, masks, outs, pred_masks, total_loss, smooth_loss, center_loss, embedding_loss, metric, pred_clusters
+
             model.eval()
             for i, data in enumerate(data_loader["valid"]):
-                if qwe == 5:
-                    break
                 i += 1
                 images, masks = data
                 images, masks = images.cuda(), masks.cuda()
                 outs = model(images)
-                try:
-                    pred_masks = cluster.train(outs, masks)
-                except RuntimeError:
-                    print("CONTINUE"*9)
-                    break
+                pred_masks = cluster.train(outs, masks)
                 total_loss, smooth_loss, center_loss, embedding_loss = Losses(pred_masks, outs, masks, mode="valid")
                 metric = IoU_metric(pred_masks, masks)
-                try:
-                    pred_clusters = cluster.inference(outs)
-                except RuntimeError:
-                    print("continue"*9)
-                    break
-                accum_data.update("valid_Sloss", smooth_loss)
-                accum_data.update("valid_Closs", center_loss)
-                accum_data.update("valid_Eloss", embedding_loss)
-                accum_data.update("valid_Tloss", total_loss)
-                accum_data.update("valid_metric", metric)
-                accum_data.update("iter_metric", metric)
+                pred_clusters = cluster.inference(outs)
+                accum_data.update("valid_Sloss", smooth_loss.detach())
+                accum_data.update("valid_Closs", center_loss.detach())
+                accum_data.update("valid_Eloss", embedding_loss.detach())
+                accum_data.update("valid_Tloss", total_loss.detach())
+                accum_data.update("valid_metric", metric.detach())
+                accum_data.update("iter_metric", metric.detach())
                 accum_data.update("valid_iter", i)
                 accum_data.visual_train(args.vis, Visual, pred_masks, outs, i, "valid")
                 accum_data.visual_inference(args.vis, Visual_inference, pred_clusters, images, i, "valid")
                 accum_data.printer_valid(i)
-            if qwe != 5:
-                accum_data.tensorboard(writer, args.tb, epoch)
-                accum_data.printer_epoch()
-                save_model(epoch, 5)
-            
+                del images, masks, outs, pred_masks, total_loss, smooth_loss, center_loss, embedding_loss, metric, pred_clusters
 
+            accum_data.tensorboard(writer, args.tb, epoch)
+            accum_data.printer_epoch()
+            save_model(epoch, 5)
+
+        else:
+            model.eval()
+            for i, data in enumerate(data_loader["valid"]):
+                images, masks = data
+                images, masks = images.cuda(), masks.cuda()
+                outs = model(images)
+                pred_clusters = cluster.inference(outs)
+                accum_data.visual_inference(args.vis, Visual_inference, pred_clusters, images, i, "test")
+
+            
 
 if __name__ == "__main__":
     train()

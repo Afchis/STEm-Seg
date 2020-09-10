@@ -27,7 +27,7 @@ class ImgsAug():
 
     def Rand(self):
         self.adjust_hue = random.uniform(-0.5, 0.5)
-        self.rotate = random.randint(-15, 15)
+        self.rotate = random.randint(-30, 30)
 
     def Image(self, image):
         image = self.resize_img(image)
